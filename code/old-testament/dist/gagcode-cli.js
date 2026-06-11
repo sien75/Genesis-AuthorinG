@@ -1,0 +1,277 @@
+#!/usr/bin/env node
+import fs from "node:fs/promises";
+import path from "node:path";
+import { ensureJsonFile, readJson, writeJson } from "./gagcode-files.js";
+import { gagcodePaths } from "./gagcode-paths.js";
+import { collectGagcodeFacts } from "./gagcode-scan.js";
+import { serveGagcodeHtml } from "./gagcode-viewer.js";
+import { buildGagcodeIndexes, queryGraphIndex, queryStructuredIndex, queryVectorIndex } from "./gagcode-index.js";
+const command = process.argv[2] ?? "help";
+const args = process.argv.slice(3);
+const root = process.cwd();
+try {
+    switch (command) {
+        case "init":
+            await initGagcode(root);
+            break;
+        case "scan":
+            await scanGagcode(root);
+            break;
+        case "validate":
+            await validateGagcode(root);
+            break;
+        case "serve":
+            await serveGagcode(root, Number(readFlag(args, "--port") ?? 4173));
+            break;
+        case "query":
+            await queryGagcode(root, readQueryArgs(args), Number(readFlag(args, "--limit") ?? 10));
+            break;
+        case "uninstall":
+            await uninstallGagcode();
+            break;
+        case "help":
+        case "--help":
+        case "-h":
+            printHelp();
+            break;
+        default:
+            throw new Error(`Unknown command: ${command}`);
+    }
+}
+catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+}
+async function initGagcode(projectRoot) {
+    const paths = gagcodePaths(projectRoot);
+    const config = {
+        schema: "gagcode.config.v1",
+        projectName: path.basename(projectRoot),
+        root: projectRoot,
+        createdAt: new Date().toISOString(),
+        include: ["**/*"],
+        exclude: ["node_modules", ".git", ".gagcode", "dist", "build", "coverage"]
+    };
+    await fs.mkdir(paths.facts, { recursive: true });
+    await fs.mkdir(paths.index, { recursive: true });
+    await fs.mkdir(paths.semantic, { recursive: true });
+    await ensureJsonFile(paths.config, config);
+    await ensureJsonFile(paths.capabilities, []);
+    await ensureJsonFile(paths.flows, []);
+    await ensureJsonFile(paths.states, []);
+    await ensureJsonFile(paths.constraints, []);
+    await ensureJsonFile(paths.impacts, []);
+    console.log(`Initialized ${path.relative(projectRoot, paths.base)}`);
+}
+async function scanGagcode(projectRoot) {
+    await initGagcode(projectRoot);
+    const paths = gagcodePaths(projectRoot);
+    const facts = await collectGagcodeFacts(projectRoot);
+    const languageCounts = facts.files.reduce((counts, file) => {
+        counts[file.language] = (counts[file.language] ?? 0) + 1;
+        return counts;
+    }, {});
+    const summary = {
+        schema: "gagcode.summary.v1",
+        generatedAt: new Date().toISOString(),
+        root: projectRoot,
+        fileCount: facts.files.length,
+        languageCounts,
+        entryCount: facts.entries.length,
+        symbolCount: facts.symbols.length,
+        importCount: facts.imports.length,
+        callCount: facts.calls.length,
+        fieldReadCount: facts.fieldReads.length,
+        fieldWriteCount: facts.fieldWrites.length,
+        definitionCount: facts.definitions.length,
+        referenceCount: facts.references.length,
+        typeCount: facts.types.length,
+        adapterCounts: adapterCounts(facts),
+        nextSteps: [
+            "Ask the gagcode skill to infer capabilities, flows, states, constraints, and impacts from .gagcode/facts.",
+            "Run gagcode validate after semantic artifacts are written.",
+            "Run gagcode serve to inspect the browser view."
+        ]
+    };
+    const model = await buildModel(projectRoot, summary, facts);
+    const indexes = buildGagcodeIndexes(model);
+    await writeJson(paths.files, facts.files);
+    await writeJson(paths.entries, facts.entries);
+    await writeJson(paths.symbols, facts.symbols);
+    await writeJson(paths.imports, facts.imports);
+    await writeJson(paths.calls, facts.calls);
+    await writeJson(paths.fieldReads, facts.fieldReads);
+    await writeJson(paths.fieldWrites, facts.fieldWrites);
+    await writeJson(paths.definitions, facts.definitions);
+    await writeJson(paths.references, facts.references);
+    await writeJson(paths.types, facts.types);
+    await writeJson(paths.structuredIndex, indexes.structured);
+    await writeJson(paths.graphIndex, indexes.graph);
+    await writeJson(paths.vectorIndex, indexes.vector);
+    await writeJson(paths.summary, summary);
+    await writeJson(paths.model, model);
+    console.log(`Scanned ${facts.files.length} files, ${facts.entries.length} entries, ${facts.symbols.length} symbols, ${facts.calls.length} calls`);
+}
+async function validateGagcode(projectRoot) {
+    const paths = gagcodePaths(projectRoot);
+    const requiredFiles = [
+        paths.config,
+        paths.summary,
+        paths.model,
+        paths.files,
+        paths.entries,
+        paths.symbols,
+        paths.imports,
+        paths.calls,
+        paths.fieldReads,
+        paths.fieldWrites,
+        paths.definitions,
+        paths.references,
+        paths.types,
+        paths.structuredIndex,
+        paths.graphIndex,
+        paths.vectorIndex,
+        paths.capabilities,
+        paths.flows,
+        paths.states,
+        paths.constraints,
+        paths.impacts
+    ];
+    for (const file of requiredFiles) {
+        await readJson(file);
+    }
+    const model = await readJson(paths.model);
+    if (model.schema !== "gagcode.model.v1") {
+        throw new Error("Invalid gagcode model schema");
+    }
+    console.log("gagcode artifacts are valid");
+}
+async function queryGagcode(projectRoot, query, limit) {
+    if (!query) {
+        throw new Error("Usage: gagcode query <text> [--limit 10]");
+    }
+    const paths = gagcodePaths(projectRoot);
+    const structured = await readJson(paths.structuredIndex);
+    const graph = await readJson(paths.graphIndex);
+    const vector = await readJson(paths.vectorIndex);
+    const result = {
+        query,
+        structured: queryStructuredIndex(structured, query, limit),
+        vector: queryVectorIndex(vector, query, limit),
+        graph: queryGraphIndex(graph, query, 2, limit)
+    };
+    console.log(JSON.stringify(result, null, 2));
+}
+async function serveGagcode(projectRoot, port) {
+    const paths = gagcodePaths(projectRoot);
+    const model = await readJson(paths.model);
+    const structured = await readJson(paths.structuredIndex);
+    const graph = await readJson(paths.graphIndex);
+    const vector = await readJson(paths.vectorIndex);
+    await serveGagcodeHtml(model, { structured, graph, vector }, port);
+}
+async function uninstallGagcode() {
+    const home = process.env.HOME;
+    if (!home) {
+        throw new Error("Cannot uninstall gagcode: HOME is not set");
+    }
+    const installDir = path.resolve(process.env.GAGCODE_INSTALL_DIR ?? path.join(home, ".gagcode", "cli"));
+    const binPath = path.resolve(process.env.GAGCODE_BIN_DIR ?? path.join(home, ".local", "bin"), "gagcode");
+    let removedBin = false;
+    try {
+        const binStat = await fs.lstat(binPath);
+        if (!binStat.isSymbolicLink()) {
+            throw new Error(`Refusing to remove non-symlink executable: ${binPath}`);
+        }
+        const target = await fs.readlink(binPath);
+        const resolvedTarget = path.resolve(path.dirname(binPath), target);
+        if (!isPathInside(resolvedTarget, installDir)) {
+            throw new Error(`Refusing to remove symlink that does not point into ${installDir}: ${binPath}`);
+        }
+        await fs.unlink(binPath);
+        removedBin = true;
+    }
+    catch (error) {
+        if (error.code !== "ENOENT") {
+            throw error;
+        }
+    }
+    await fs.rm(installDir, { recursive: true, force: true });
+    console.log(`Removed gagcode executable: ${removedBin ? binPath : "not found"}`);
+    console.log(`Removed gagcode install directory: ${installDir}`);
+}
+function isPathInside(value, parent) {
+    const relative = path.relative(parent, value);
+    return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+function adapterCounts(facts) {
+    const counts = {};
+    for (const collection of [
+        facts.entries,
+        facts.symbols,
+        facts.imports,
+        facts.calls,
+        facts.fieldReads,
+        facts.fieldWrites,
+        facts.definitions,
+        facts.references,
+        facts.types
+    ]) {
+        for (const fact of collection) {
+            counts[fact.source] = (counts[fact.source] ?? 0) + 1;
+        }
+    }
+    return counts;
+}
+async function buildModel(projectRoot, summary, facts) {
+    const paths = gagcodePaths(projectRoot);
+    return {
+        schema: "gagcode.model.v1",
+        generatedAt: new Date().toISOString(),
+        summary,
+        facts,
+        semantic: {
+            capabilities: await readSemanticArray(paths.capabilities),
+            flows: await readSemanticArray(paths.flows),
+            states: await readSemanticArray(paths.states),
+            constraints: await readSemanticArray(paths.constraints),
+            impacts: await readSemanticArray(paths.impacts)
+        }
+    };
+}
+async function readSemanticArray(filePath) {
+    try {
+        const value = await readJson(filePath);
+        return Array.isArray(value) ? value : [];
+    }
+    catch {
+        return [];
+    }
+}
+function readFlag(values, name) {
+    const index = values.indexOf(name);
+    return index >= 0 ? values[index + 1] : undefined;
+}
+function readQueryArgs(values) {
+    const output = [];
+    for (let index = 0; index < values.length; index += 1) {
+        if (values[index] === "--limit") {
+            index += 1;
+            continue;
+        }
+        output.push(values[index] ?? "");
+    }
+    return output.join(" ").trim();
+}
+function printHelp() {
+    console.log(`gagcode
+
+Usage:
+  gagcode init
+  gagcode scan
+  gagcode validate
+  gagcode serve [--port 4173]
+  gagcode query <text> [--limit 10]
+  gagcode uninstall
+`);
+}
