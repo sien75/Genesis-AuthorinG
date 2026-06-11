@@ -27,15 +27,21 @@ gagcode query <text>  # Search facts by keyword (returns symbols, calls, graph n
 
 ## AI Agent Workflow
 
-After scan is done, you (the agent) infer semantic meaning and write results to `.gagcode/semantic/`.
+### Step 1: Ensure facts exist
 
-### Step 1: Orient
+1. If `.gagcode/gagcode.config.json` does not exist, run `gagcode init`.
+2. If `.gagcode/facts/gagcode.files.json` does not exist or is empty, run `gagcode scan`.
+3. Confirm scan succeeded by checking that `.gagcode/gagcode.summary.json` exists.
+
+### Step 2: Orient
+
+Now that facts are generated:
 
 1. Read `.gagcode/gagcode.summary.json` — understand scale
 2. Read project README or package.json — understand domain
 3. Read `.gagcode/facts/gagcode.entries.json` — see all entry points
 
-### Step 2: Infer Semantic Artifacts
+### Step 3: Infer Semantic Artifacts
 
 Process in order: **capabilities → flows → states → constraints → impacts**.
 
@@ -46,7 +52,7 @@ For each artifact type:
 
 For large projects (50+ entries): batch by 5-8 related entries at a time.
 
-### Step 3: Validate and Present
+### Step 4: Validate and Present
 
 Run `gagcode validate`. Show the user a capability map. Offer to drill into flows, states, or constraints.
 
