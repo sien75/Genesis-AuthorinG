@@ -4,7 +4,6 @@ import path from "node:path";
 import { ensureJsonFile, readJson, writeJson } from "./gagcode-files.js";
 import { gagcodePaths } from "./gagcode-paths.js";
 import { collectGagcodeFacts } from "./gagcode-scan.js";
-import { serveGagcodeHtml } from "./gagcode-viewer.js";
 import { buildGagcodeIndexes, queryGraphIndex, queryStructuredIndex, queryVectorIndex } from "./gagcode-index.js";
 const command = process.argv[2] ?? "help";
 const args = process.argv.slice(3);
@@ -20,9 +19,6 @@ try {
             break;
         case "validate":
             await validateGagcode(root);
-            break;
-        case "serve":
-            await serveGagcode(root, Number(readFlag(args, "--port") ?? 4173));
             break;
         case "query":
             await queryGagcode(root, readQueryArgs(args), readLimit(args));
@@ -91,7 +87,7 @@ async function scanGagcode(projectRoot) {
         nextSteps: [
             "Ask the gagcode skill to infer capabilities, flows, states, constraints, and impacts from .gagcode/facts.",
             "Run gagcode validate after semantic artifacts are written.",
-            "Run gagcode serve to inspect the browser view."
+            "Run gagcode query to search the indexed facts."
         ]
     };
     const model = await buildModel(projectRoot, summary, facts);
@@ -163,14 +159,6 @@ async function queryGagcode(projectRoot, query, limit) {
         graph: queryGraphIndex(graph, query, 2, limit)
     };
     console.log(JSON.stringify(result, null, 2));
-}
-async function serveGagcode(projectRoot, port) {
-    const paths = gagcodePaths(projectRoot);
-    const model = await readJson(paths.model);
-    const structured = await readJson(paths.structuredIndex);
-    const graph = await readJson(paths.graphIndex);
-    const vector = await readJson(paths.vectorIndex);
-    await serveGagcodeHtml(model, { structured, graph, vector }, port);
 }
 async function uninstallGagcode() {
     const home = process.env.HOME;
@@ -279,7 +267,6 @@ Usage:
   gagcode init
   gagcode scan
   gagcode validate
-  gagcode serve [--port 4173]
   gagcode query <text> [--limit ${DEFAULT_QUERY_LIMIT}]
   gagcode uninstall
 `);

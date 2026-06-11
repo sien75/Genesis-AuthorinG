@@ -13,7 +13,6 @@ import type {
   GagcodeVectorDocument,
   GagcodeVectorIndex
 } from "./gagcode-types.js";
-import { serveGagcodeHtml } from "./gagcode-viewer.js";
 import { buildGagcodeIndexes, queryGraphIndex, queryStructuredIndex, queryVectorIndex } from "./gagcode-index.js";
 
 const command = process.argv[2] ?? "help";
@@ -32,10 +31,7 @@ try {
     case "validate":
       await validateGagcode(root);
       break;
-    case "serve":
-      await serveGagcode(root, Number(readFlag(args, "--port") ?? 4173));
-      break;
-    case "query":
+case "query":
       await queryGagcode(root, readQueryArgs(args), readLimit(args));
       break;
     case "uninstall":
@@ -106,7 +102,7 @@ async function scanGagcode(projectRoot: string): Promise<void> {
     nextSteps: [
       "Ask the gagcode skill to infer capabilities, flows, states, constraints, and impacts from .gagcode/facts.",
       "Run gagcode validate after semantic artifacts are written.",
-      "Run gagcode serve to inspect the browser view."
+      "Run gagcode query to search the indexed facts."
     ]
   };
 
@@ -189,15 +185,6 @@ async function queryGagcode(projectRoot: string, query: string, limit: number): 
     graph: queryGraphIndex(graph, query, 2, limit)
   };
   console.log(JSON.stringify(result, null, 2));
-}
-
-async function serveGagcode(projectRoot: string, port: number): Promise<void> {
-  const paths = gagcodePaths(projectRoot);
-  const model = await readJson<GagcodeModel>(paths.model);
-  const structured = await readJson<GagcodeStructuredIndex>(paths.structuredIndex);
-  const graph = await readJson<GagcodeGraphIndex>(paths.graphIndex);
-  const vector = await readJson<GagcodeVectorIndex>(paths.vectorIndex);
-  await serveGagcodeHtml(model, { structured, graph, vector }, port);
 }
 
 async function uninstallGagcode(): Promise<void> {
@@ -324,7 +311,6 @@ Usage:
   gagcode init
   gagcode scan
   gagcode validate
-  gagcode serve [--port 4173]
   gagcode query <text> [--limit ${DEFAULT_QUERY_LIMIT}]
   gagcode uninstall
 `);
