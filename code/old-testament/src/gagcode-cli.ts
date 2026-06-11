@@ -28,9 +28,6 @@ try {
     case "scan":
       await scanGagcode(root);
       break;
-    case "validate":
-      await validateGagcode(root);
-      break;
 case "query":
       await queryGagcode(root, readQueryArgs(args), readLimit(args));
       break;
@@ -128,42 +125,6 @@ async function scanGagcode(projectRoot: string): Promise<void> {
   );
 }
 
-async function validateGagcode(projectRoot: string): Promise<void> {
-  const paths = gagcodePaths(projectRoot);
-  const requiredFiles = [
-    paths.config,
-    paths.summary,
-    paths.files,
-    paths.entries,
-    paths.symbols,
-    paths.imports,
-    paths.calls,
-    paths.fieldReads,
-    paths.fieldWrites,
-    paths.definitions,
-    paths.references,
-    paths.types,
-    paths.structuredIndex,
-    paths.graphIndex,
-    paths.vectorIndex,
-    paths.capabilities,
-    paths.flows,
-    paths.states,
-    paths.constraints,
-    paths.impacts
-  ];
-
-  for (const file of requiredFiles) {
-    await readJson<unknown>(file);
-  }
-
-  const summary = await readJson<GagcodeSummary>(paths.summary);
-  if (summary.schema !== "gagcode.summary.v1") {
-    throw new Error("Invalid gagcode summary schema");
-  }
-
-  console.log("gagcode artifacts are valid");
-}
 
 async function queryGagcode(projectRoot: string, query: string, limit: number): Promise<void> {
   if (!query) {
@@ -278,7 +239,6 @@ function printHelp(): void {
 Usage:
   gagcode init
   gagcode scan
-  gagcode validate
   gagcode query <text> [--limit ${DEFAULT_QUERY_LIMIT}]
   gagcode uninstall
 `);

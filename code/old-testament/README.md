@@ -9,15 +9,13 @@ It treats an existing codebase as an SSOT made of:
 
 Browser views are derived from the SSOT. Agent-authored semantic overlays are written into `.gagcode/semantic`, so they are part of the `.gagcode` artifact set rather than a separate SSOT component.
 
-The CLI intentionally avoids built-in AI inference. It extracts deterministic facts, stores them in `.gagcode`, validates the artifact shape, and renders the result in a local browser UI. Codex or Claude Code skills read those facts, use agent AI to infer capabilities and flows, then write semantic artifacts back into `.gagcode/semantic`.
+The CLI intentionally avoids built-in AI inference. It extracts deterministic facts and stores them in `.gagcode`. Codex or Claude Code skills read those facts, use agent AI to infer capabilities and flows, then write semantic artifacts back into `.gagcode/semantic`.
 
 ## Commands
 
 ```bash
 gagcode init
 gagcode scan
-gagcode validate
-gagcode serve
 gagcode query "Document status"
 gagcode uninstall
 ```
@@ -61,7 +59,6 @@ gagcode uninstall
 .gagcode/
   gagcode.config.json
   gagcode.summary.json
-  gagcode.model.json
   facts/
     gagcode.files.json
     gagcode.entries.json
@@ -87,7 +84,7 @@ gagcode uninstall
 
 ## Boundary
 
-`gagcode` owns deterministic code facts and rendering.
+`gagcode` owns deterministic code facts.
 
 Agent skills own semantic interpretation:
 
@@ -97,7 +94,6 @@ codebase
   -> .gagcode/facts/*
   -> Codex / Claude Code skill
   -> .gagcode/semantic/*
-  -> gagcode serve
 ```
 
 ## Fact Extraction Phases
@@ -136,7 +132,5 @@ gagcode query "status transition" --limit 10
 ```
 
 Query mode defaults to 10 results to keep outputs small enough for agent context. Increase or decrease it with `--limit`. Query output omits internal vector weights and returns only evidence fields.
-
-The browser viewer also exposes the same retrieval path through `gagcode serve`.
 
 Agents should use query results as navigation hints, then read the corresponding source code snippets. Source code is the behavioral ground truth; facts and indexes are not meant to be loaded wholesale into the model context.

@@ -13,7 +13,6 @@ gagcode is a code understanding system: deterministic CLI extracts facts, AI age
 ```bash
 gagcode init          # Create .gagcode/ directory structure and config
 gagcode scan          # Extract facts from source code → .gagcode/facts/ + indexes
-gagcode validate      # Check all .gagcode/ artifacts are present and valid JSON
 gagcode query <text>  # Search facts by keyword (returns symbols, calls, graph neighbors)
 ```
 
@@ -21,7 +20,6 @@ gagcode query <text>  # Search facts by keyword (returns symbols, calls, graph n
 - `.gagcode/facts/` — files, entries, symbols, imports, calls, field-reads, field-writes, definitions, references, types
 - `.gagcode/index/` — structured-index, graph-index, vector-index
 - `.gagcode/gagcode.summary.json` — counts and metadata
-`gagcode validate` checks that all expected files exist, are valid JSON, and the summary schema is correct. It validates both scan output and semantic artifacts.
 
 ## AI Agent Workflow
 
@@ -50,9 +48,9 @@ For each artifact type:
 
 For large projects (50+ entries): batch by 5-8 related entries at a time.
 
-### Step 4: Validate and Present
+### Step 4: Present
 
-Run `gagcode validate`. Show the user a capability map. Offer to drill into flows, states, or constraints.
+Show the user a capability map. Offer to drill into flows, states, or constraints.
 
 ## Rules
 

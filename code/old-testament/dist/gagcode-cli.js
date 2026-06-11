@@ -17,9 +17,6 @@ try {
         case "scan":
             await scanGagcode(root);
             break;
-        case "validate":
-            await validateGagcode(root);
-            break;
         case "query":
             await queryGagcode(root, readQueryArgs(args), readLimit(args));
             break;
@@ -106,39 +103,6 @@ async function scanGagcode(projectRoot) {
     await writeJson(paths.vectorIndex, indexes.vector);
     await writeJson(paths.summary, summary);
     console.log(`Scanned ${facts.files.length} files, ${facts.entries.length} entries, ${facts.symbols.length} symbols, ${facts.calls.length} calls`);
-}
-async function validateGagcode(projectRoot) {
-    const paths = gagcodePaths(projectRoot);
-    const requiredFiles = [
-        paths.config,
-        paths.summary,
-        paths.files,
-        paths.entries,
-        paths.symbols,
-        paths.imports,
-        paths.calls,
-        paths.fieldReads,
-        paths.fieldWrites,
-        paths.definitions,
-        paths.references,
-        paths.types,
-        paths.structuredIndex,
-        paths.graphIndex,
-        paths.vectorIndex,
-        paths.capabilities,
-        paths.flows,
-        paths.states,
-        paths.constraints,
-        paths.impacts
-    ];
-    for (const file of requiredFiles) {
-        await readJson(file);
-    }
-    const summary = await readJson(paths.summary);
-    if (summary.schema !== "gagcode.summary.v1") {
-        throw new Error("Invalid gagcode summary schema");
-    }
-    console.log("gagcode artifacts are valid");
 }
 async function queryGagcode(projectRoot, query, limit) {
     if (!query) {
@@ -238,7 +202,6 @@ function printHelp() {
 Usage:
   gagcode init
   gagcode scan
-  gagcode validate
   gagcode query <text> [--limit ${DEFAULT_QUERY_LIMIT}]
   gagcode uninstall
 `);
