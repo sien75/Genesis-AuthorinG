@@ -37,17 +37,17 @@ gagcode query <text>  # Search facts by keyword (returns symbols, calls, graph n
 
 Now that facts are generated:
 
-1. Read `.gagcode/gagcode.summary.json` — understand scale
+1. Read `.gagcode/gagcode.summary.json` — understand scale and languages
 2. Read project README or package.json — understand domain
-3. Read `.gagcode/facts/gagcode.entries.json` — see all entry points
+3. Browse source code structure (directories, entry files, route files) to identify capabilities
 
 ### Step 3: Infer Semantic Artifacts
 
 Process in order: **capabilities → flows → states → constraints → impacts**.
 
 For each artifact type:
-1. Use `gagcode query <keyword>` to find relevant facts
-2. Read source code at evidence locations to confirm
+1. Read source code to understand behavior (code is ground truth)
+2. Use `gagcode query <keyword>` to locate related symbols, calls, and references
 3. Write results to the corresponding `.gagcode/semantic/` file
 
 For large projects (50+ entries): batch by 5-8 related entries at a time.
