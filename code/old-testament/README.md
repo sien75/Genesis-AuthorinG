@@ -27,7 +27,7 @@ gagcode uninstall
 Install directly from GitHub without publishing to npm:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/main/code/old-testament/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/scripts/install.sh | sh
 ```
 
 The installer downloads the repository tarball, builds `code/old-testament`, installs it under `~/.gagcode/cli`, and links `gagcode` into `~/.local/bin`.
@@ -38,7 +38,7 @@ Override defaults when needed:
 GAGCODE_REF=main \
 GAGCODE_INSTALL_DIR="$HOME/.gagcode/cli" \
 GAGCODE_BIN_DIR="$HOME/.local/bin" \
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/main/code/old-testament/scripts/install.sh)"
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/scripts/install.sh)"
 ```
 
 Uninstall removes the installed CLI directory and the `gagcode` symlink created by the installer:

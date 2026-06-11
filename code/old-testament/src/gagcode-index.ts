@@ -108,12 +108,12 @@ function buildStructuredIndex(facts: GagcodeIndexedFact[], generatedAt: string):
   const index: GagcodeStructuredIndex = {
     schema: "gagcode.structured-index.v1",
     generatedAt,
-    byFile: {},
-    bySymbol: {},
-    byField: {},
-    byType: {},
-    byEntryKind: {},
-    byFactId: {}
+    byFile: objectMap(),
+    bySymbol: objectMap(),
+    byField: objectMap(),
+    byType: objectMap(),
+    byEntryKind: objectMap(),
+    byFactId: objectMap()
   };
 
   for (const fact of facts) {
@@ -129,7 +129,7 @@ function buildStructuredIndex(facts: GagcodeIndexedFact[], generatedAt: string):
 }
 
 function buildGraphIndex(model: GagcodeModel, facts: GagcodeIndexedFact[], generatedAt: string): GagcodeGraphIndex {
-  const nodes: Record<string, GagcodeGraphNode> = {};
+  const nodes: Record<string, GagcodeGraphNode> = objectMap();
   const edges: GagcodeGraphIndex["edges"] = [];
 
   for (const file of model.facts.files) {
@@ -192,7 +192,7 @@ function buildVectorIndex(facts: GagcodeIndexedFact[], generatedAt: string): Gag
     line: fact.line,
     label: fact.label,
     text: fact.text,
-    weights: {}
+    weights: objectMap()
   }));
 
   const documentTerms = documents.map((document) => tokenize(`${document.kind} ${document.label} ${document.text} ${document.file}`));
@@ -203,7 +203,7 @@ function buildVectorIndex(facts: GagcodeIndexedFact[], generatedAt: string): Gag
     }
   }
 
-  const vocabulary: Record<string, number> = {};
+  const vocabulary: Record<string, number> = objectMap();
   for (const term of [...documentFrequency.keys()].sort()) {
     vocabulary[term] = Object.keys(vocabulary).length;
   }
@@ -288,7 +288,7 @@ function weightsFor(
     if (term in vocabulary) counts.set(term, (counts.get(term) ?? 0) + 1);
   }
 
-  const weights: Record<string, number> = {};
+  const weights: Record<string, number> = objectMap();
   for (const [term, count] of counts) {
     const idf = documentFrequency && documentCount ? Math.log(1 + documentCount / (1 + (documentFrequency.get(term) ?? 0))) : 1;
     weights[String(vocabulary[term])] = count * idf;
@@ -312,4 +312,8 @@ function factKindToNodeKind(kind: string): GagcodeGraphNode["kind"] {
   if (kind === "type") return "type";
   if (kind === "fieldRead" || kind === "fieldWrite") return "field";
   return "fact";
+}
+
+function objectMap<T>(): Record<string, T> {
+  return Object.create(null) as Record<string, T>;
 }

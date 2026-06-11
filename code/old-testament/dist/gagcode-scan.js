@@ -25,13 +25,25 @@ export async function collectGagcodeFacts(root) {
         });
         for (const adapter of syntaxAdapters) {
             if (adapter.supports(relative)) {
-                mergeFacts(facts, adapter.analyzeFile({ root, relativePath: relative, text: raw }));
+                try {
+                    mergeFacts(facts, adapter.analyzeFile({ root, relativePath: relative, text: raw }));
+                }
+                catch (error) {
+                    console.warn(`Skipped ${adapter.id} analysis for ${relative}: ${errorMessage(error)}`);
+                }
             }
         }
     }
     for (const adapter of semanticAdapters) {
         if (adapter.supportsProject(root, relativeFiles)) {
-            const semantic = adapter.analyzeProject({ root, relativeFiles });
+            let semantic;
+            try {
+                semantic = adapter.analyzeProject({ root, relativeFiles });
+            }
+            catch (error) {
+                console.warn(`Skipped ${adapter.id} project analysis: ${errorMessage(error)}`);
+                continue;
+            }
             facts.calls.push(...semantic.calls);
             facts.fieldReads.push(...semantic.fieldReads);
             facts.fieldWrites.push(...semantic.fieldWrites);
@@ -52,6 +64,9 @@ export async function collectGagcodeFacts(root) {
         references: dedupeReferences(facts.references),
         types: dedupeByKey(facts.types, (fact) => `${fact.source}:${fact.file}:${fact.line}:${fact.name}:${fact.text}`)
     };
+}
+function errorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
 }
 function mergeFacts(target, next) {
     target.entries.push(...next.entries);

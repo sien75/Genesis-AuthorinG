@@ -81,12 +81,12 @@ function buildStructuredIndex(facts, generatedAt) {
     const index = {
         schema: "gagcode.structured-index.v1",
         generatedAt,
-        byFile: {},
-        bySymbol: {},
-        byField: {},
-        byType: {},
-        byEntryKind: {},
-        byFactId: {}
+        byFile: objectMap(),
+        bySymbol: objectMap(),
+        byField: objectMap(),
+        byType: objectMap(),
+        byEntryKind: objectMap(),
+        byFactId: objectMap()
     };
     for (const fact of facts) {
         index.byFactId[fact.id] = fact;
@@ -103,7 +103,7 @@ function buildStructuredIndex(facts, generatedAt) {
     return index;
 }
 function buildGraphIndex(model, facts, generatedAt) {
-    const nodes = {};
+    const nodes = objectMap();
     const edges = [];
     for (const file of model.facts.files) {
         nodes[`file:${file.path}`] = { id: `file:${file.path}`, kind: "file", label: file.path, file: file.path };
@@ -157,7 +157,7 @@ function buildVectorIndex(facts, generatedAt) {
         line: fact.line,
         label: fact.label,
         text: fact.text,
-        weights: {}
+        weights: objectMap()
     }));
     const documentTerms = documents.map((document) => tokenize(`${document.kind} ${document.label} ${document.text} ${document.file}`));
     const documentFrequency = new Map();
@@ -166,7 +166,7 @@ function buildVectorIndex(facts, generatedAt) {
             documentFrequency.set(term, (documentFrequency.get(term) ?? 0) + 1);
         }
     }
-    const vocabulary = {};
+    const vocabulary = objectMap();
     for (const term of [...documentFrequency.keys()].sort()) {
         vocabulary[term] = Object.keys(vocabulary).length;
     }
@@ -237,7 +237,7 @@ function weightsFor(terms, vocabulary, documentFrequency, documentCount) {
         if (term in vocabulary)
             counts.set(term, (counts.get(term) ?? 0) + 1);
     }
-    const weights = {};
+    const weights = objectMap();
     for (const [term, count] of counts) {
         const idf = documentFrequency && documentCount ? Math.log(1 + documentCount / (1 + (documentFrequency.get(term) ?? 0))) : 1;
         weights[String(vocabulary[term])] = count * idf;
@@ -266,4 +266,7 @@ function factKindToNodeKind(kind) {
     if (kind === "fieldRead" || kind === "fieldWrite")
         return "field";
     return "fact";
+}
+function objectMap() {
+    return Object.create(null);
 }

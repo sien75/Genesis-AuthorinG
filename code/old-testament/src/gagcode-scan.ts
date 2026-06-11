@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { languageForFile, walkCodeFiles } from "./gagcode-files.js";
-import { emptyFactBag, GagcodeIdFactory, type GagcodeFactBag } from "./gagcode-adapters.js";
+import { emptyFactBag, GagcodeIdFactory, type GagcodeFactBag, type GagcodeSemanticFactBag } from "./gagcode-adapters.js";
 import { createTreeSitterSyntaxAdapter } from "./gagcode-tree-sitter-adapter.js";
 import { createTypeScriptSemanticAdapter } from "./gagcode-typescript-adapter.js";
 import type { GagcodeFileFact, GagcodeModel } from "./gagcode-types.js";
@@ -31,14 +31,24 @@ export async function collectGagcodeFacts(root: string): Promise<GagcodeModel["f
 
     for (const adapter of syntaxAdapters) {
       if (adapter.supports(relative)) {
-        mergeFacts(facts, adapter.analyzeFile({ root, relativePath: relative, text: raw }));
+        try {
+          mergeFacts(facts, adapter.analyzeFile({ root, relativePath: relative, text: raw }));
+        } catch (error) {
+          console.warn(`Skipped ${adapter.id} analysis for ${relative}: ${errorMessage(error)}`);
+        }
       }
     }
   }
 
   for (const adapter of semanticAdapters) {
     if (adapter.supportsProject(root, relativeFiles)) {
-      const semantic = adapter.analyzeProject({ root, relativeFiles });
+      let semantic: GagcodeSemanticFactBag;
+      try {
+        semantic = adapter.analyzeProject({ root, relativeFiles });
+      } catch (error) {
+        console.warn(`Skipped ${adapter.id} project analysis: ${errorMessage(error)}`);
+        continue;
+      }
       facts.calls.push(...semantic.calls);
       facts.fieldReads.push(...semantic.fieldReads);
       facts.fieldWrites.push(...semantic.fieldWrites);
@@ -60,6 +70,10 @@ export async function collectGagcodeFacts(root: string): Promise<GagcodeModel["f
     references: dedupeReferences(facts.references),
     types: dedupeByKey(facts.types, (fact) => `${fact.source}:${fact.file}:${fact.line}:${fact.name}:${fact.text}`)
   };
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function mergeFacts(target: GagcodeFactBag, next: GagcodeFactBag): void {
