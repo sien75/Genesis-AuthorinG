@@ -4,9 +4,9 @@ import { languageForFile, walkCodeFiles } from "./gagcode-files.js";
 import { emptyFactBag, GagcodeIdFactory, type GagcodeFactBag, type GagcodeSemanticFactBag } from "./gagcode-adapters.js";
 import { createTreeSitterSyntaxAdapter } from "./gagcode-tree-sitter-adapter.js";
 import { createTypeScriptSemanticAdapter } from "./gagcode-typescript-adapter.js";
-import type { GagcodeCallFact, GagcodeFieldAccessFact, GagcodeFileFact, GagcodeModel } from "./gagcode-types.js";
+import type { GagcodeCallFact, GagcodeFacts, GagcodeFieldAccessFact, GagcodeFileFact } from "./gagcode-types.js";
 
-export async function collectGagcodeFacts(root: string): Promise<GagcodeModel["facts"]> {
+export async function collectGagcodeFacts(root: string): Promise<GagcodeFacts> {
   const relativeFiles = await walkCodeFiles(root);
   const files: GagcodeFileFact[] = [];
   const idFactory = new GagcodeIdFactory();

@@ -128,29 +128,17 @@ export interface GagcodeSummary {
   nextSteps: string[];
 }
 
-export interface GagcodeModel {
-  schema: "gagcode.model.v1";
-  generatedAt: string;
-  summary: GagcodeSummary;
-  facts: {
-    files: GagcodeFileFact[];
-    entries: GagcodeEntryFact[];
-    symbols: GagcodeSymbolFact[];
-    imports: GagcodeImportFact[];
-    calls: GagcodeCallFact[];
-    fieldReads: GagcodeFieldAccessFact[];
-    fieldWrites: GagcodeFieldAccessFact[];
-    definitions: GagcodeDefinitionFact[];
-    references: GagcodeReferenceFact[];
-    types: GagcodeTypeFact[];
-  };
-  semantic: {
-    capabilities: unknown[];
-    flows: unknown[];
-    states: unknown[];
-    constraints: unknown[];
-    impacts: unknown[];
-  };
+export interface GagcodeFacts {
+  files: GagcodeFileFact[];
+  entries: GagcodeEntryFact[];
+  symbols: GagcodeSymbolFact[];
+  imports: GagcodeImportFact[];
+  calls: GagcodeCallFact[];
+  fieldReads: GagcodeFieldAccessFact[];
+  fieldWrites: GagcodeFieldAccessFact[];
+  definitions: GagcodeDefinitionFact[];
+  references: GagcodeReferenceFact[];
+  types: GagcodeTypeFact[];
 }
 
 export interface GagcodeStructuredIndex {

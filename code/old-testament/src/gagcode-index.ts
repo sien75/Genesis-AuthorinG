@@ -1,8 +1,8 @@
 import type {
+  GagcodeFacts,
   GagcodeGraphIndex,
   GagcodeGraphNode,
   GagcodeIndexedFact,
-  GagcodeModel,
   GagcodeStructuredIndex,
   GagcodeVectorDocument,
   GagcodeVectorIndex
@@ -29,16 +29,16 @@ const STOP_WORDS = new Set([
   "null"
 ]);
 
-export function buildGagcodeIndexes(model: GagcodeModel): {
+export function buildGagcodeIndexes(facts: GagcodeFacts): {
   structured: GagcodeStructuredIndex;
   graph: GagcodeGraphIndex;
   vector: GagcodeVectorIndex;
 } {
   const generatedAt = new Date().toISOString();
-  const indexedFacts = flattenFacts(model);
+  const indexedFacts = flattenFacts(facts);
   return {
     structured: buildStructuredIndex(indexedFacts, generatedAt),
-    graph: buildGraphIndex(model, indexedFacts, generatedAt),
+    graph: buildGraphIndex(facts, indexedFacts, generatedAt),
     vector: buildVectorIndex(indexedFacts, generatedAt)
   };
 }
@@ -128,11 +128,11 @@ function buildStructuredIndex(facts: GagcodeIndexedFact[], generatedAt: string):
   return index;
 }
 
-function buildGraphIndex(model: GagcodeModel, facts: GagcodeIndexedFact[], generatedAt: string): GagcodeGraphIndex {
+function buildGraphIndex(srcFacts: GagcodeFacts, facts: GagcodeIndexedFact[], generatedAt: string): GagcodeGraphIndex {
   const nodes: Record<string, GagcodeGraphNode> = objectMap();
   const edges: GagcodeGraphIndex["edges"] = [];
 
-  for (const file of model.facts.files) {
+  for (const file of srcFacts.files) {
     nodes[`file:${file.path}`] = { id: `file:${file.path}`, kind: "file", label: file.path, file: file.path };
   }
 
@@ -141,7 +141,7 @@ function buildGraphIndex(model: GagcodeModel, facts: GagcodeIndexedFact[], gener
     edges.push({ from: `file:${fact.file}`, to: fact.id, kind: "contains", evidence: `${fact.file}:${fact.line}` });
   }
 
-  for (const call of model.facts.calls) {
+  for (const call of srcFacts.calls) {
     if (call.resolvedTo) {
       edges.push({ from: call.id, to: `definition:${call.resolvedTo}`, kind: "calls", evidence: call.evidence });
       nodes[`definition:${call.resolvedTo}`] ??= {
@@ -152,7 +152,7 @@ function buildGraphIndex(model: GagcodeModel, facts: GagcodeIndexedFact[], gener
     }
   }
 
-  for (const reference of model.facts.references) {
+  for (const reference of srcFacts.references) {
     if (reference.definition) {
       edges.push({ from: reference.id, to: `definition:${reference.definition}`, kind: "references", evidence: reference.evidence });
       nodes[`definition:${reference.definition}`] ??= {
@@ -163,19 +163,19 @@ function buildGraphIndex(model: GagcodeModel, facts: GagcodeIndexedFact[], gener
     }
   }
 
-  for (const read of model.facts.fieldReads) {
+  for (const read of srcFacts.fieldReads) {
     const fieldNode = `field:${read.ownerType ?? read.object ?? "unknown"}.${read.field}`;
     nodes[fieldNode] ??= { id: fieldNode, kind: "field", label: fieldNode.replace(/^field:/, "") };
     edges.push({ from: read.id, to: fieldNode, kind: "reads", evidence: read.evidence });
   }
 
-  for (const write of model.facts.fieldWrites) {
+  for (const write of srcFacts.fieldWrites) {
     const fieldNode = `field:${write.ownerType ?? write.object ?? "unknown"}.${write.field}`;
     nodes[fieldNode] ??= { id: fieldNode, kind: "field", label: fieldNode.replace(/^field:/, "") };
     edges.push({ from: write.id, to: fieldNode, kind: "writes", evidence: write.evidence });
   }
 
-  for (const importFact of model.facts.imports) {
+  for (const importFact of srcFacts.imports) {
     const importNode = `import:${importFact.from}`;
     nodes[importNode] ??= { id: importNode, kind: "fact", label: importFact.from };
     edges.push({ from: importFact.id, to: importNode, kind: "imports", evidence: importFact.evidence });
@@ -221,17 +221,17 @@ function buildVectorIndex(facts: GagcodeIndexedFact[], generatedAt: string): Gag
   };
 }
 
-function flattenFacts(model: GagcodeModel): GagcodeIndexedFact[] {
+function flattenFacts(facts: GagcodeFacts): GagcodeIndexedFact[] {
   return [
-    ...model.facts.entries.map((fact) => indexed(fact.id, "entry", fact.file, fact.line, fact.kind, fact.evidence, fact.source)),
-    ...model.facts.symbols.map((fact) => indexed(fact.id, "symbol", fact.file, fact.line, fact.name, fact.evidence, fact.source)),
-    ...model.facts.imports.map((fact) => indexed(fact.id, "import", fact.file, fact.line, fact.from, fact.evidence, fact.source)),
-    ...model.facts.calls.map((fact) => indexed(fact.id, "call", fact.file, fact.line, fact.callee, fact.evidence, fact.source)),
-    ...model.facts.fieldReads.map((fact) => indexed(fact.id, "fieldRead", fact.file, fact.line, fact.field, fact.evidence, fact.source)),
-    ...model.facts.fieldWrites.map((fact) => indexed(fact.id, "fieldWrite", fact.file, fact.line, fact.field, fact.evidence, fact.source)),
-    ...model.facts.definitions.map((fact) => indexed(fact.id, "definition", fact.file, fact.line, fact.name, fact.evidence, fact.source)),
-    ...model.facts.references.map((fact) => indexed(fact.id, "reference", fact.file, fact.line, fact.name, fact.evidence, fact.source)),
-    ...model.facts.types.map((fact) => indexed(fact.id, "type", fact.file, fact.line, fact.name, fact.text, fact.source))
+    ...facts.entries.map((fact) => indexed(fact.id, "entry", fact.file, fact.line, fact.kind, fact.evidence, fact.source)),
+    ...facts.symbols.map((fact) => indexed(fact.id, "symbol", fact.file, fact.line, fact.name, fact.evidence, fact.source)),
+    ...facts.imports.map((fact) => indexed(fact.id, "import", fact.file, fact.line, fact.from, fact.evidence, fact.source)),
+    ...facts.calls.map((fact) => indexed(fact.id, "call", fact.file, fact.line, fact.callee, fact.evidence, fact.source)),
+    ...facts.fieldReads.map((fact) => indexed(fact.id, "fieldRead", fact.file, fact.line, fact.field, fact.evidence, fact.source)),
+    ...facts.fieldWrites.map((fact) => indexed(fact.id, "fieldWrite", fact.file, fact.line, fact.field, fact.evidence, fact.source)),
+    ...facts.definitions.map((fact) => indexed(fact.id, "definition", fact.file, fact.line, fact.name, fact.evidence, fact.source)),
+    ...facts.references.map((fact) => indexed(fact.id, "reference", fact.file, fact.line, fact.name, fact.evidence, fact.source)),
+    ...facts.types.map((fact) => indexed(fact.id, "type", fact.file, fact.line, fact.name, fact.text, fact.source))
   ];
 }
 

@@ -90,8 +90,7 @@ async function scanGagcode(projectRoot) {
             "Run gagcode query to search the indexed facts."
         ]
     };
-    const model = await buildModel(projectRoot, summary, facts);
-    const indexes = buildGagcodeIndexes(model);
+    const indexes = buildGagcodeIndexes(facts);
     await writeJson(paths.files, facts.files);
     await writeJson(paths.entries, facts.entries);
     await writeJson(paths.symbols, facts.symbols);
@@ -106,7 +105,6 @@ async function scanGagcode(projectRoot) {
     await writeJson(paths.graphIndex, indexes.graph);
     await writeJson(paths.vectorIndex, indexes.vector);
     await writeJson(paths.summary, summary);
-    await writeJson(paths.model, model);
     console.log(`Scanned ${facts.files.length} files, ${facts.entries.length} entries, ${facts.symbols.length} symbols, ${facts.calls.length} calls`);
 }
 async function validateGagcode(projectRoot) {
@@ -114,7 +112,6 @@ async function validateGagcode(projectRoot) {
     const requiredFiles = [
         paths.config,
         paths.summary,
-        paths.model,
         paths.files,
         paths.entries,
         paths.symbols,
@@ -137,9 +134,9 @@ async function validateGagcode(projectRoot) {
     for (const file of requiredFiles) {
         await readJson(file);
     }
-    const model = await readJson(paths.model);
-    if (model.schema !== "gagcode.model.v1") {
-        throw new Error("Invalid gagcode model schema");
+    const summary = await readJson(paths.summary);
+    if (summary.schema !== "gagcode.summary.v1") {
+        throw new Error("Invalid gagcode summary schema");
     }
     console.log("gagcode artifacts are valid");
 }
@@ -212,31 +209,6 @@ function adapterCounts(facts) {
         }
     }
     return counts;
-}
-async function buildModel(projectRoot, summary, facts) {
-    const paths = gagcodePaths(projectRoot);
-    return {
-        schema: "gagcode.model.v1",
-        generatedAt: new Date().toISOString(),
-        summary,
-        facts,
-        semantic: {
-            capabilities: await readSemanticArray(paths.capabilities),
-            flows: await readSemanticArray(paths.flows),
-            states: await readSemanticArray(paths.states),
-            constraints: await readSemanticArray(paths.constraints),
-            impacts: await readSemanticArray(paths.impacts)
-        }
-    };
-}
-async function readSemanticArray(filePath) {
-    try {
-        const value = await readJson(filePath);
-        return Array.isArray(value) ? value : [];
-    }
-    catch {
-        return [];
-    }
 }
 function readFlag(values, name) {
     const index = values.indexOf(name);

@@ -21,9 +21,7 @@ gagcode query <text>  # Search facts by keyword (returns symbols, calls, graph n
 - `.gagcode/facts/` — files, entries, symbols, imports, calls, field-reads, field-writes, definitions, references, types
 - `.gagcode/index/` — structured-index, graph-index, vector-index
 - `.gagcode/gagcode.summary.json` — counts and metadata
-- `.gagcode/gagcode.model.json` — unified model
-
-`gagcode validate` checks that all expected files exist, are valid JSON, and the model schema is correct. It validates both scan output and semantic artifacts.
+`gagcode validate` checks that all expected files exist, are valid JSON, and the summary schema is correct. It validates both scan output and semantic artifacts.
 
 ## AI Agent Workflow
 

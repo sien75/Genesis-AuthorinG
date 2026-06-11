@@ -6,8 +6,8 @@ import { gagcodePaths } from "./gagcode-paths.js";
 import { collectGagcodeFacts } from "./gagcode-scan.js";
 import type {
   GagcodeConfig,
+  GagcodeFacts,
   GagcodeGraphIndex,
-  GagcodeModel,
   GagcodeStructuredIndex,
   GagcodeSummary,
   GagcodeVectorDocument,
@@ -106,8 +106,7 @@ async function scanGagcode(projectRoot: string): Promise<void> {
     ]
   };
 
-  const model = await buildModel(projectRoot, summary, facts);
-  const indexes = buildGagcodeIndexes(model);
+  const indexes = buildGagcodeIndexes(facts);
 
   await writeJson(paths.files, facts.files);
   await writeJson(paths.entries, facts.entries);
@@ -123,7 +122,6 @@ async function scanGagcode(projectRoot: string): Promise<void> {
   await writeJson(paths.graphIndex, indexes.graph);
   await writeJson(paths.vectorIndex, indexes.vector);
   await writeJson(paths.summary, summary);
-  await writeJson(paths.model, model);
 
   console.log(
     `Scanned ${facts.files.length} files, ${facts.entries.length} entries, ${facts.symbols.length} symbols, ${facts.calls.length} calls`
@@ -135,7 +133,6 @@ async function validateGagcode(projectRoot: string): Promise<void> {
   const requiredFiles = [
     paths.config,
     paths.summary,
-    paths.model,
     paths.files,
     paths.entries,
     paths.symbols,
@@ -160,9 +157,9 @@ async function validateGagcode(projectRoot: string): Promise<void> {
     await readJson<unknown>(file);
   }
 
-  const model = await readJson<GagcodeModel>(paths.model);
-  if (model.schema !== "gagcode.model.v1") {
-    throw new Error("Invalid gagcode model schema");
+  const summary = await readJson<GagcodeSummary>(paths.summary);
+  if (summary.schema !== "gagcode.summary.v1") {
+    throw new Error("Invalid gagcode summary schema");
   }
 
   console.log("gagcode artifacts are valid");
@@ -228,7 +225,7 @@ function isPathInside(value: string, parent: string): boolean {
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
-function adapterCounts(facts: GagcodeModel["facts"]): Record<string, number> {
+function adapterCounts(facts: GagcodeFacts): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const collection of [
     facts.entries,
@@ -248,35 +245,6 @@ function adapterCounts(facts: GagcodeModel["facts"]): Record<string, number> {
   return counts;
 }
 
-async function buildModel(
-  projectRoot: string,
-  summary: GagcodeSummary,
-  facts: GagcodeModel["facts"]
-): Promise<GagcodeModel> {
-  const paths = gagcodePaths(projectRoot);
-  return {
-    schema: "gagcode.model.v1",
-    generatedAt: new Date().toISOString(),
-    summary,
-    facts,
-    semantic: {
-      capabilities: await readSemanticArray(paths.capabilities),
-      flows: await readSemanticArray(paths.flows),
-      states: await readSemanticArray(paths.states),
-      constraints: await readSemanticArray(paths.constraints),
-      impacts: await readSemanticArray(paths.impacts)
-    }
-  };
-}
-
-async function readSemanticArray(filePath: string): Promise<unknown[]> {
-  try {
-    const value = await readJson<unknown>(filePath);
-    return Array.isArray(value) ? value : [];
-  } catch {
-    return [];
-  }
-}
 
 function readFlag(values: string[], name: string): string | undefined {
   const index = values.indexOf(name);

@@ -12,7 +12,6 @@ export function gagcodePaths(root) {
         semantic,
         config: path.join(base, "gagcode.config.json"),
         summary: path.join(base, "gagcode.summary.json"),
-        model: path.join(base, "gagcode.model.json"),
         files: path.join(facts, "gagcode.files.json"),
         entries: path.join(facts, "gagcode.entries.json"),
         symbols: path.join(facts, "gagcode.symbols.json"),
