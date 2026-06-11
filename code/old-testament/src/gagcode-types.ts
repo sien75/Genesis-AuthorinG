@@ -62,6 +62,7 @@ export interface GagcodeCallFact {
   line: number;
   evidence: string;
   source: GagcodeFactSource;
+  count?: number;
 }
 
 export interface GagcodeFieldAccessFact {
@@ -73,6 +74,7 @@ export interface GagcodeFieldAccessFact {
   line: number;
   evidence: string;
   source: GagcodeFactSource;
+  count?: number;
 }
 
 export interface GagcodeDefinitionFact {

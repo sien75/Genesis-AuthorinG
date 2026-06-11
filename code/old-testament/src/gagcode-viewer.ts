@@ -1,6 +1,8 @@
 import http from "node:http";
 import { queryGraphIndex, queryStructuredIndex, queryVectorIndex } from "./gagcode-index.js";
-import type { GagcodeGraphIndex, GagcodeModel, GagcodeStructuredIndex, GagcodeVectorIndex } from "./gagcode-types.js";
+import type { GagcodeGraphIndex, GagcodeModel, GagcodeStructuredIndex, GagcodeVectorDocument, GagcodeVectorIndex } from "./gagcode-types.js";
+
+const DEFAULT_QUERY_LIMIT = 10;
 
 export interface GagcodeViewerIndexes {
   structured: GagcodeStructuredIndex;
@@ -135,11 +137,13 @@ export async function serveGagcodeHtml(model: GagcodeModel, indexes: GagcodeView
     }
     if (url.pathname === "/query") {
       const query = url.searchParams.get("q") ?? "";
+      const limit = readLimit(url);
       const result = {
         query,
-        structured: queryStructuredIndex(indexes.structured, query, 10),
-        vector: queryVectorIndex(indexes.vector, query, 10),
-        graph: queryGraphIndex(indexes.graph, query, 2, 10)
+        limit,
+        structured: queryStructuredIndex(indexes.structured, query, limit),
+        vector: compactVectorDocuments(queryVectorIndex(indexes.vector, query, limit)),
+        graph: queryGraphIndex(indexes.graph, query, 2, limit)
       };
       response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
       response.end(JSON.stringify(result, null, 2));
@@ -156,6 +160,15 @@ export async function serveGagcodeHtml(model: GagcodeModel, indexes: GagcodeView
 
 function semanticCount(model: GagcodeModel): number {
   return Object.values(model.semantic).reduce((sum, value) => sum + value.length, 0);
+}
+
+function readLimit(url: URL): number {
+  const value = Number(url.searchParams.get("limit") ?? DEFAULT_QUERY_LIMIT);
+  return Number.isSafeInteger(value) && value > 0 ? value : DEFAULT_QUERY_LIMIT;
+}
+
+function compactVectorDocuments(documents: GagcodeVectorDocument[]): Array<Omit<GagcodeVectorDocument, "weights">> {
+  return documents.map(({ weights: _weights, ...document }) => document);
 }
 
 function escapeHtml(value: string): string {

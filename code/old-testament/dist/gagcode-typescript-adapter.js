@@ -114,6 +114,12 @@ function collectDefinitionsAndTypes(root, sourceFile, node, checker, bag, idFact
         });
     }
 }
+const NOISE_GLOBALS = new Set([
+    "console", "JSON", "Math", "Object", "Array", "Promise", "Map", "Set",
+    "Error", "Number", "String", "Boolean", "Date", "RegExp", "Symbol",
+    "undefined", "process", "parseInt", "parseFloat", "isNaN", "isFinite",
+    "setTimeout", "setInterval", "clearTimeout", "clearInterval", "Buffer"
+]);
 function collectReferences(root, sourceFile, node, checker, bag, idFactory) {
     if (!ts.isIdentifier(node)) {
         return;
@@ -122,7 +128,16 @@ function collectReferences(root, sourceFile, node, checker, bag, idFactory) {
     if (!symbol) {
         return;
     }
+    if (!symbol.declarations?.length && NOISE_GLOBALS.has(node.text)) {
+        return;
+    }
     const definition = symbol.valueDeclaration ?? symbol.declarations?.[0];
+    if (definition) {
+        const defSourceFile = definition.getSourceFile();
+        if (defSourceFile === sourceFile) {
+            return;
+        }
+    }
     const location = locationFor(root, sourceFile, node);
     bag.references.push({
         id: idFactory.next("reference"),

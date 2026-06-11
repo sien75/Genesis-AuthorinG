@@ -99,8 +99,8 @@ export function queryGraphIndex(index: GagcodeGraphIndex, query: string, depth: 
 
   const edges = index.edges.filter((edge) => visited.has(edge.from) && visited.has(edge.to));
   return {
-    nodes: [...visited].map((id) => index.nodes[id]).filter(Boolean).slice(0, limit * 4),
-    edges: edges.slice(0, limit * 8)
+    nodes: [...visited].map((id) => index.nodes[id]).filter(Boolean).slice(0, limit),
+    edges: edges.slice(0, limit)
   };
 }
 

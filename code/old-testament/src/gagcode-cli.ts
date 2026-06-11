@@ -4,13 +4,22 @@ import path from "node:path";
 import { ensureJsonFile, readJson, writeJson } from "./gagcode-files.js";
 import { gagcodePaths } from "./gagcode-paths.js";
 import { collectGagcodeFacts } from "./gagcode-scan.js";
-import type { GagcodeConfig, GagcodeGraphIndex, GagcodeModel, GagcodeStructuredIndex, GagcodeSummary, GagcodeVectorIndex } from "./gagcode-types.js";
+import type {
+  GagcodeConfig,
+  GagcodeGraphIndex,
+  GagcodeModel,
+  GagcodeStructuredIndex,
+  GagcodeSummary,
+  GagcodeVectorDocument,
+  GagcodeVectorIndex
+} from "./gagcode-types.js";
 import { serveGagcodeHtml } from "./gagcode-viewer.js";
 import { buildGagcodeIndexes, queryGraphIndex, queryStructuredIndex, queryVectorIndex } from "./gagcode-index.js";
 
 const command = process.argv[2] ?? "help";
 const args = process.argv.slice(3);
 const root = process.cwd();
+const DEFAULT_QUERY_LIMIT = 10;
 
 try {
   switch (command) {
@@ -27,7 +36,7 @@ try {
       await serveGagcode(root, Number(readFlag(args, "--port") ?? 4173));
       break;
     case "query":
-      await queryGagcode(root, readQueryArgs(args), Number(readFlag(args, "--limit") ?? 10));
+      await queryGagcode(root, readQueryArgs(args), readLimit(args));
       break;
     case "uninstall":
       await uninstallGagcode();
@@ -174,8 +183,9 @@ async function queryGagcode(projectRoot: string, query: string, limit: number): 
   const vector = await readJson<GagcodeVectorIndex>(paths.vectorIndex);
   const result = {
     query,
+    limit,
     structured: queryStructuredIndex(structured, query, limit),
-    vector: queryVectorIndex(vector, query, limit),
+    vector: compactVectorDocuments(queryVectorIndex(vector, query, limit)),
     graph: queryGraphIndex(graph, query, 2, limit)
   };
   console.log(JSON.stringify(result, null, 2));
@@ -286,6 +296,15 @@ function readFlag(values: string[], name: string): string | undefined {
   return index >= 0 ? values[index + 1] : undefined;
 }
 
+function readLimit(values: string[]): number {
+  const value = Number(readFlag(values, "--limit") ?? DEFAULT_QUERY_LIMIT);
+  return Number.isSafeInteger(value) && value > 0 ? value : DEFAULT_QUERY_LIMIT;
+}
+
+function compactVectorDocuments(documents: GagcodeVectorDocument[]): Array<Omit<GagcodeVectorDocument, "weights">> {
+  return documents.map(({ weights: _weights, ...document }) => document);
+}
+
 function readQueryArgs(values: string[]): string {
   const output: string[] = [];
   for (let index = 0; index < values.length; index += 1) {
@@ -306,7 +325,7 @@ Usage:
   gagcode scan
   gagcode validate
   gagcode serve [--port 4173]
-  gagcode query <text> [--limit 10]
+  gagcode query <text> [--limit ${DEFAULT_QUERY_LIMIT}]
   gagcode uninstall
 `);
 }

@@ -135,6 +135,8 @@ Use query mode for Agent or CLI inspection:
 gagcode query "status transition" --limit 10
 ```
 
+Query mode defaults to 10 results to keep outputs small enough for agent context. Increase or decrease it with `--limit`. Query output omits internal vector weights and returns only evidence fields.
+
 The browser viewer also exposes the same retrieval path through `gagcode serve`.
 
 Agents should use query results as navigation hints, then read the corresponding source code snippets. Source code is the behavioral ground truth; facts and indexes are not meant to be loaded wholesale into the model context.

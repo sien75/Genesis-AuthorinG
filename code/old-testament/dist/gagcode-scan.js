@@ -57,9 +57,9 @@ export async function collectGagcodeFacts(root) {
         entries: dedupeByEvidence(facts.entries),
         symbols: dedupeByEvidence(facts.symbols),
         imports: dedupeByEvidence(facts.imports),
-        calls: dedupeByEvidence(facts.calls),
-        fieldReads: dedupeByEvidence(facts.fieldReads),
-        fieldWrites: dedupeByEvidence(facts.fieldWrites),
+        calls: aggregateCalls(dedupeByEvidence(facts.calls)),
+        fieldReads: aggregateFieldAccess(dedupeByEvidence(facts.fieldReads)),
+        fieldWrites: aggregateFieldAccess(dedupeByEvidence(facts.fieldWrites)),
         definitions: dedupeByEvidence(facts.definitions),
         references: dedupeReferences(facts.references),
         types: dedupeByKey(facts.types, (fact) => `${fact.source}:${fact.file}:${fact.line}:${fact.name}:${fact.text}`)
@@ -103,4 +103,32 @@ function dedupeByKey(facts, keyFor) {
         seen.add(key);
         return true;
     });
+}
+function aggregateCalls(facts) {
+    const map = new Map();
+    for (const fact of facts) {
+        const key = `${fact.file}:${fact.callee}`;
+        const existing = map.get(key);
+        if (existing) {
+            existing.count = (existing.count ?? 1) + 1;
+        }
+        else {
+            map.set(key, { ...fact, count: 1 });
+        }
+    }
+    return Array.from(map.values());
+}
+function aggregateFieldAccess(facts) {
+    const map = new Map();
+    for (const fact of facts) {
+        const key = `${fact.file}:${fact.object ?? ""}:${fact.field}`;
+        const existing = map.get(key);
+        if (existing) {
+            existing.count = (existing.count ?? 1) + 1;
+        }
+        else {
+            map.set(key, { ...fact, count: 1 });
+        }
+    }
+    return Array.from(map.values());
 }

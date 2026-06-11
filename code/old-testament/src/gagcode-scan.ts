@@ -4,7 +4,7 @@ import { languageForFile, walkCodeFiles } from "./gagcode-files.js";
 import { emptyFactBag, GagcodeIdFactory, type GagcodeFactBag, type GagcodeSemanticFactBag } from "./gagcode-adapters.js";
 import { createTreeSitterSyntaxAdapter } from "./gagcode-tree-sitter-adapter.js";
 import { createTypeScriptSemanticAdapter } from "./gagcode-typescript-adapter.js";
-import type { GagcodeFileFact, GagcodeModel } from "./gagcode-types.js";
+import type { GagcodeCallFact, GagcodeFieldAccessFact, GagcodeFileFact, GagcodeModel } from "./gagcode-types.js";
 
 export async function collectGagcodeFacts(root: string): Promise<GagcodeModel["facts"]> {
   const relativeFiles = await walkCodeFiles(root);
@@ -63,9 +63,9 @@ export async function collectGagcodeFacts(root: string): Promise<GagcodeModel["f
     entries: dedupeByEvidence(facts.entries),
     symbols: dedupeByEvidence(facts.symbols),
     imports: dedupeByEvidence(facts.imports),
-    calls: dedupeByEvidence(facts.calls),
-    fieldReads: dedupeByEvidence(facts.fieldReads),
-    fieldWrites: dedupeByEvidence(facts.fieldWrites),
+    calls: aggregateCalls(dedupeByEvidence(facts.calls)),
+    fieldReads: aggregateFieldAccess(dedupeByEvidence(facts.fieldReads)),
+    fieldWrites: aggregateFieldAccess(dedupeByEvidence(facts.fieldWrites)),
     definitions: dedupeByEvidence(facts.definitions),
     references: dedupeReferences(facts.references),
     types: dedupeByKey(facts.types, (fact) => `${fact.source}:${fact.file}:${fact.line}:${fact.name}:${fact.text}`)
@@ -114,4 +114,32 @@ function dedupeByKey<T>(facts: T[], keyFor: (fact: T) => string): T[] {
     seen.add(key);
     return true;
   });
+}
+
+function aggregateCalls(facts: GagcodeCallFact[]): GagcodeCallFact[] {
+  const map = new Map<string, GagcodeCallFact>();
+  for (const fact of facts) {
+    const key = `${fact.file}:${fact.callee}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.count = (existing.count ?? 1) + 1;
+    } else {
+      map.set(key, { ...fact, count: 1 });
+    }
+  }
+  return Array.from(map.values());
+}
+
+function aggregateFieldAccess(facts: GagcodeFieldAccessFact[]): GagcodeFieldAccessFact[] {
+  const map = new Map<string, GagcodeFieldAccessFact>();
+  for (const fact of facts) {
+    const key = `${fact.file}:${fact.object ?? ""}:${fact.field}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.count = (existing.count ?? 1) + 1;
+    } else {
+      map.set(key, { ...fact, count: 1 });
+    }
+  }
+  return Array.from(map.values());
 }
