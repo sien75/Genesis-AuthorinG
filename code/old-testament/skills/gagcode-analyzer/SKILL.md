@@ -1,10 +1,10 @@
 ---
-name: gagcode
+name: gagcode-analyzer
 description: |
   Analyze existing codebases using gagcode CLI for fact extraction, then infer semantic artifacts (capabilities, flows, states, constraints, impacts). Use when user asks to understand a project, map capabilities, trace flows, or assess impact.
 ---
 
-# gagcode
+# gagcode-analyzer
 
 gagcode is a code understanding system: deterministic CLI extracts facts, AI agent infers meaning.
 
@@ -44,7 +44,7 @@ Process in order: **capabilities → flows → states → constraints → impact
 For each artifact type:
 1. Read source code to understand behavior (code is ground truth)
 2. Use `gagcode query <keyword>` to locate related symbols, calls, and references
-3. Write results to the corresponding `.gagcode/semantic/` file
+3. Write results to the corresponding `.gagcode/semantic/gagcode.{type}.json` file (e.g. `gagcode.capabilities.json`, `gagcode.flows.json`, `gagcode.states.json`, `gagcode.constraints.json`, `gagcode.impacts.json`) — these are created by `gagcode init`
 
 For large projects (50+ entries): batch by 5-8 related entries at a time.
 
