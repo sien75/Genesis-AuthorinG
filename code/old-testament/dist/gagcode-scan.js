@@ -57,9 +57,9 @@ export async function collectGagcodeFacts(root) {
         entries: dedupeByEvidence(facts.entries),
         symbols: dedupeByEvidence(facts.symbols),
         imports: dedupeByEvidence(facts.imports),
-        calls: aggregateCalls(dedupeByEvidence(facts.calls)),
-        fieldReads: aggregateFieldAccess(dedupeByEvidence(facts.fieldReads)),
-        fieldWrites: aggregateFieldAccess(dedupeByEvidence(facts.fieldWrites)),
+        calls: aggregateCalls(dedupeAcrossSources(facts.calls)),
+        fieldReads: aggregateFieldAccess(dedupeFieldAccessAcrossSources(facts.fieldReads)),
+        fieldWrites: aggregateFieldAccess(dedupeFieldAccessAcrossSources(facts.fieldWrites)),
         definitions: dedupeByEvidence(facts.definitions),
         references: dedupeReferences(facts.references),
         types: dedupeByKey(facts.types, (fact) => `${fact.source}:${fact.file}:${fact.line}:${fact.name}:${fact.text}`)
@@ -104,9 +104,39 @@ function dedupeByKey(facts, keyFor) {
         return true;
     });
 }
+const NOISE_FIELDS = new Set([
+    "length", "size", "map", "filter", "reduce", "forEach", "find", "findIndex",
+    "some", "every", "includes", "indexOf", "lastIndexOf", "flat", "flatMap",
+    "slice", "splice", "concat", "join", "sort", "reverse", "fill",
+    "push", "pop", "shift", "unshift", "keys", "values", "entries",
+    "has", "get", "set", "delete", "clear", "add",
+    "then", "catch", "finally",
+    "toString", "valueOf", "toJSON", "toISOString", "toLocaleDateString",
+    "trim", "trimStart", "trimEnd", "padStart", "padEnd",
+    "startsWith", "endsWith", "replace", "replaceAll", "split", "match", "search",
+    "toUpperCase", "toLowerCase", "charAt", "charCodeAt", "codePointAt", "at",
+    "substring", "repeat",
+    "call", "apply", "bind",
+    "log", "warn", "error", "info", "debug", "trace",
+    "resolve", "reject", "all", "allSettled", "race", "any",
+    "parse", "stringify",
+    "assign", "freeze", "defineProperty", "getOwnPropertyNames",
+    "from", "of", "isArray",
+    "abs", "ceil", "floor", "round", "max", "min", "pow", "sqrt", "random",
+    "now", "UTC",
+    "test", "exec",
+    "next", "done", "value", "return",
+    "prototype", "constructor", "__proto__"
+]);
+function isNoiseCall(callee) {
+    const tail = callee.includes(".") ? callee.slice(callee.lastIndexOf(".") + 1) : callee;
+    return NOISE_FIELDS.has(tail);
+}
 function aggregateCalls(facts) {
     const map = new Map();
     for (const fact of facts) {
+        if (isNoiseCall(fact.callee))
+            continue;
         const key = `${fact.file}:${fact.callee}`;
         const existing = map.get(key);
         if (existing) {
@@ -121,6 +151,8 @@ function aggregateCalls(facts) {
 function aggregateFieldAccess(facts) {
     const map = new Map();
     for (const fact of facts) {
+        if (NOISE_FIELDS.has(fact.field))
+            continue;
         const key = `${fact.file}:${fact.object ?? ""}:${fact.field}`;
         const existing = map.get(key);
         if (existing) {
@@ -128,6 +160,28 @@ function aggregateFieldAccess(facts) {
         }
         else {
             map.set(key, { ...fact, count: 1 });
+        }
+    }
+    return Array.from(map.values());
+}
+function dedupeAcrossSources(facts) {
+    const map = new Map();
+    for (const fact of facts) {
+        const key = `${fact.file}:${fact.line}:${fact.callee}`;
+        const existing = map.get(key);
+        if (!existing || fact.source === "typescript-compiler") {
+            map.set(key, fact);
+        }
+    }
+    return Array.from(map.values());
+}
+function dedupeFieldAccessAcrossSources(facts) {
+    const map = new Map();
+    for (const fact of facts) {
+        const key = `${fact.file}:${fact.line}:${fact.object ?? ""}:${fact.field}`;
+        const existing = map.get(key);
+        if (!existing || fact.source === "typescript-compiler") {
+            map.set(key, fact);
         }
     }
     return Array.from(map.values());
