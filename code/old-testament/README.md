@@ -78,8 +78,6 @@ gagcode uninstall
     gagcode.capabilities.json
     gagcode.flows.json
     gagcode.states.json
-    gagcode.constraints.json
-    gagcode.impacts.json
 ```
 
 ## Boundary

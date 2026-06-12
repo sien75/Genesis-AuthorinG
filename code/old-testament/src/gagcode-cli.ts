@@ -65,8 +65,6 @@ async function initGagcode(projectRoot: string): Promise<void> {
   await ensureJsonFile(paths.capabilities, []);
   await ensureJsonFile(paths.flows, []);
   await ensureJsonFile(paths.states, []);
-  await ensureJsonFile(paths.constraints, []);
-  await ensureJsonFile(paths.impacts, []);
 
   console.log(`Initialized ${path.relative(projectRoot, paths.base)}`);
 }
@@ -97,7 +95,7 @@ async function scanGagcode(projectRoot: string): Promise<void> {
     typeCount: facts.types.length,
     adapterCounts: adapterCounts(facts),
     nextSteps: [
-      "Ask the gagcode skill to infer capabilities, flows, states, constraints, and impacts from .gagcode/facts.",
+      "Ask the gagcode skill to infer capabilities, flows, and states from .gagcode/facts.",
       "Run gagcode validate after semantic artifacts are written.",
       "Run gagcode query to search the indexed facts."
     ]

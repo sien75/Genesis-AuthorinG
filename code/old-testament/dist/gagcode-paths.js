@@ -27,8 +27,6 @@ export function gagcodePaths(root) {
         vectorIndex: path.join(index, "gagcode.vector-index.json"),
         capabilities: path.join(semantic, "gagcode.capabilities.json"),
         flows: path.join(semantic, "gagcode.flows.json"),
-        states: path.join(semantic, "gagcode.states.json"),
-        constraints: path.join(semantic, "gagcode.constraints.json"),
-        impacts: path.join(semantic, "gagcode.impacts.json")
+        states: path.join(semantic, "gagcode.states.json")
     };
 }

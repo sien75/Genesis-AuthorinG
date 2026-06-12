@@ -1,7 +1,7 @@
 ---
 name: gagcode-analyzer
 description: |
-  Analyze existing codebases using gagcode CLI for fact extraction, then infer semantic artifacts (capabilities, flows, states, constraints, impacts). Use when user asks to understand a project, map capabilities, trace flows, or assess impact.
+  Analyze existing codebases using gagcode CLI for fact extraction, then infer semantic artifacts (capabilities, flows, states). Use when user asks to understand a project, map capabilities, or trace real execution flows.
 ---
 
 # gagcode-analyzer
@@ -39,18 +39,18 @@ Now that facts are generated:
 
 ### Step 3: Infer Semantic Artifacts
 
-Process in order: **capabilities → flows → states → constraints → impacts**.
+Process in order: **capabilities → flows → states**.
 
 For each artifact type:
 1. Read source code to understand behavior (code is ground truth)
 2. Use `gagcode query <keyword>` to locate related symbols, calls, and references
-3. Write results to the corresponding `.gagcode/semantic/gagcode.{type}.json` file (e.g. `gagcode.capabilities.json`, `gagcode.flows.json`, `gagcode.states.json`, `gagcode.constraints.json`, `gagcode.impacts.json`) — these are created by `gagcode init`
+3. Write results to the corresponding `.gagcode/semantic/gagcode.{type}.json` file (e.g. `gagcode.capabilities.json`, `gagcode.flows.json`, `gagcode.states.json`) — these are created by `gagcode init`
 
 For large projects (50+ entries): batch by 5-8 related entries at a time.
 
 ### Step 4: Present
 
-Show the user a capability map. Offer to drill into flows, states, or constraints.
+Show the user a capability map. Offer to drill into flows or states.
 
 ## Rules
 
@@ -139,38 +139,6 @@ Show the user a capability map. Offer to drill into flows, states, or constraint
   ],
   "flows": ["flow:upload-document"],
   "evidence": ["src/document.ts:8"],
-  "confidence": "high|medium|low"
-}
-```
-
-### Constraint
-
-```json
-{
-  "id": "constraint:file-size-limit",
-  "type": "Permission|Validation|StateGuard|Consistency|Resource|Security|BusinessRule",
-  "rule": "Uploaded files must be under 50MB.",
-  "target": "Upload Document",
-  "failureBehavior": "Returns 400 with error message",
-  "attachedToFlowNode": "node:upload-document:validate-file",
-  "evidence": ["src/upload.ts:21"],
-  "confidence": "high|medium|low"
-}
-```
-
-### Impact
-
-```json
-{
-  "id": "impact:document-status",
-  "source": "Document.status",
-  "sourceType": "field|function|config|entity|event|route",
-  "affectedCapabilities": ["capability:upload-document", "capability:search-documents"],
-  "affectedFlows": ["flow:upload-document", "flow:index-document"],
-  "affectedFiles": ["src/indexer.ts", "src/search.ts"],
-  "riskLevel": "high|medium|low",
-  "reason": "Controls indexing lifecycle and search visibility.",
-  "evidence": ["src/indexer.ts:34", "src/search.ts:19"],
   "confidence": "high|medium|low"
 }
 ```

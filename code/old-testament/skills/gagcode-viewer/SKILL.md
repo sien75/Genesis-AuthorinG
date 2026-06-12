@@ -1,7 +1,7 @@
 ---
 name: gagcode-viewer
 description: |
-  Generate a local browser viewer for gagcode semantic artifacts. Creates HTML/JS pages in .gagcode/views/ that visualize capabilities, flows, states, constraints, and impacts. Only generates once — if views already exist, reuse them or modify per user request. Use when user asks to view, render, visualize, or browse gagcode analysis results.
+  Generate a local browser viewer for gagcode semantic artifacts. Creates HTML/JS pages in .gagcode/views/ that visualize capabilities, flows, and states. Only generates once — if views already exist, reuse them or modify per user request. Use when user asks to view, render, visualize, or browse gagcode analysis results.
 ---
 
 # gagcode-viewer
@@ -40,8 +40,6 @@ Generate a single-page app that reads JSON files from the same directory. Before
 cp .gagcode/semantic/gagcode.capabilities.json .gagcode/views/capabilities.json
 cp .gagcode/semantic/gagcode.flows.json .gagcode/views/flows.json
 cp .gagcode/semantic/gagcode.states.json .gagcode/views/states.json
-cp .gagcode/semantic/gagcode.constraints.json .gagcode/views/constraints.json
-cp .gagcode/semantic/gagcode.impacts.json .gagcode/views/impacts.json
 ```
 
 ### File Structure
@@ -54,8 +52,6 @@ cp .gagcode/semantic/gagcode.impacts.json .gagcode/views/impacts.json
   capabilities.json — copied from semantic/
   flows.json        — copied from semantic/
   states.json       — copied from semantic/
-  constraints.json  — copied from semantic/
-  impacts.json      — copied from semantic/
 ```
 
 ### Page Layout
@@ -65,7 +61,6 @@ The viewer has a simple 3-level drill-down structure:
 ```
 ┌─────────────────────────────────────────────┐
 │  Project Name        [Capabilities] [States]│
-│                      [Constraints] [Impacts]│
 ├─────────────────────────────────────────────┤
 │                                             │
 │  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐   │
@@ -95,7 +90,7 @@ The viewer has a simple 3-level drill-down structure:
 
 **Level 3 — Node Detail (optional panel):**
 - Click a flow node → show detail panel on the right
-- Shows: related states, constraints, evidence files
+- Shows: related states, conditions, branch behavior, and evidence files
 - Evidence items are displayed as `file:line` text
 
 ### Navigation Tabs
@@ -103,8 +98,6 @@ The viewer has a simple 3-level drill-down structure:
 Top nav has tabs for global views:
 - **Capabilities** (default) — the card grid
 - **States** — list all state machines with their transitions
-- **Constraints** — list all constraints grouped by type
-- **Impacts** — list all impact records sorted by risk level
 
 ### Design Principles
 
@@ -120,14 +113,12 @@ Top nav has tabs for global views:
 ```javascript
 // app.js pattern
 async function loadData() {
-  const [capabilities, flows, states, constraints, impacts] = await Promise.all([
+  const [capabilities, flows, states] = await Promise.all([
     fetch('capabilities.json').then(r => r.json()),
     fetch('flows.json').then(r => r.json()),
     fetch('states.json').then(r => r.json()),
-    fetch('constraints.json').then(r => r.json()),
-    fetch('impacts.json').then(r => r.json()),
   ]);
-  return { capabilities, flows, states, constraints, impacts };
+  return { capabilities, flows, states };
 }
 ```
 
