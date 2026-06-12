@@ -149,3 +149,11 @@ ot-coverage status
 
 - **用用户的语言**——所有内容和回复使用用户的语言编写
 - **通俗易懂**——像一个耐心的老手在给新人讲系统，不用术语堆砌
+
+## 卸载 ot-coverage
+
+如果不再需要，可以卸载：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/cli/uninstall.sh | sh
+```
