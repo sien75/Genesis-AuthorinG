@@ -57,11 +57,39 @@ ot-coverage mark <file> <startLine>-<endLine> --depth ignored
 
 ## f. 输出
 
-分析完成后，将结果写入 `.ot/modules/{场景名称}.html`。
+循环 a ~ e, 直到分析完成后，将结果写入 `.ot/modules/{场景名称}.html`。
 
-使用纯 HTML，不写 CSS 样式（浏览器默认样式即可）。图使用 Mermaid.js 语法，通过 CDN 渲染。
+图使用 Mermaid.js 语法，通过 CDN 渲染。
 
-页面结构参考：
+### 源码查看器
+
+页面采用左右分屏布局（黄金比例 `61.8% : 38.2%`）：
+
+- **左侧**：主要内容区（描述、流程图等）
+- **右侧**：源码查看器面板，初始隐藏，点击流程图节点后展开
+
+#### Mermaid 节点点击交互
+
+- 将 Mermaid 的 `securityLevel` 设为 `'loose'` 以启用 callback
+- 每个流程图节点用 `click` 语法绑定回调，传入节点 ID
+- 回调函数根据节点 ID 查找对应的源码位置信息（`file`, `startLine`, `endLine`），在右侧面板中展示
+
+#### 源码面板实现
+
+- 使用 **Monaco Editor**（VS Code 的编辑器内核），通过 CDN 加载
+- 设为 **只读模式**（`readOnly: true`）
+- 关闭所有辅助 UI：minimap、行号装饰以外的 gutter、右键菜单、悬浮提示、代码折叠等，只保留行号和代码内容
+- 面板顶部显示当前文件的**相对路径和文件名**
+- 通过 `revealLineInCenter()` 滚动到目标行，用 `deltaDecorations()` 高亮 `startLine` 到 `endLine` 的行范围（背景色标记）
+
+#### 源码文件读取
+
+- 使用 **File System Access API**（`window.showDirectoryPicker()`）读取本地项目文件
+- 页面加载时提示用户选择项目根目录，获取目录句柄后缓存
+- 点击节点时，根据节点绑定的相对文件路径，从目录句柄中定位并读取文件内容
+- 如果用户未授权目录或文件不存在，在源码面板中显示提示信息
+
+### 页面结构参考
 
 ```html
 <!DOCTYPE html>
@@ -70,40 +98,61 @@ ot-coverage mark <file> <startLine>-<endLine> --depth ignored
   <meta charset="utf-8">
   <title>{场景名称}</title>
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-  <script>mermaid.initialize({startOnLoad: true});</script>
+  <script>mermaid.initialize({startOnLoad: true, securityLevel: 'loose'});</script>
+  <!-- Monaco Editor 通过 CDN 加载（如 jsdelivr 或 unpkg 上的 monaco-editor） -->
 </head>
 <body>
-  <p><a href="../index.html">← 返回概述</a></p>
 
-  <h1>{场景名称}</h1>
-  <p>（通俗的模块描述）</p>
+  <!-- 左侧内容区（61.8%） -->
+  <div id="main-content">
+    <p><a href="../index.html">← 返回概述</a></p>
 
-  <h2>输入 / 输出</h2>
-  <ul>
-    <li>📥 输入：（业务含义）</li>
-    <li>📤 输出：（业务含义）</li>
-  </ul>
+    <h1>{场景名称}</h1>
+    <p>（通俗的模块描述）</p>
 
-  <h2>流程</h2>
-  <pre class="mermaid">
-    graph TD
-      A["步骤一"] --> B["步骤二"]
-      B --> C{"条件判断"}
-      C -->|"是"| D["步骤三"]
-      C -->|"否"| E["错误处理"]
-  </pre>
+    <h2>输入 / 输出</h2>
+    <ul>
+      <li>📥 输入：（业务含义）</li>
+      <li>📤 输出：（业务含义）</li>
+    </ul>
 
-  <!-- 每个节点对应的源码位置 -->
-  <h2>源码位置</h2>
-  <ul>
-    <li>步骤一 — <code>src/foo.ts:12-30</code></li>
-    <li>步骤二 — <code>src/bar.ts:45-72</code></li>
-  </ul>
+    <h2>流程</h2>
+    <pre class="mermaid">
+      graph TD
+        A["步骤一"] --> B["步骤二"]
+        B --> C{"条件判断"}
+        C -->|"是"| D["步骤三"]
+        C -->|"否"| E["错误处理"]
+        click A showSource "查看源码"
+        click B showSource "查看源码"
+        click D showSource "查看源码"
+        click E showSource "查看源码"
+    </pre>
 
-  <h2>补充说明</h2>
-  <ul>
-    <li>（notes 内容）</li>
-  </ul>
+    <h2>补充说明</h2>
+    <ul>
+      <li>（notes 内容）</li>
+    </ul>
+  </div>
+
+  <!-- 右侧源码面板（38.2%），初始隐藏 -->
+  <div id="source-panel">
+    <div id="source-header">{文件路径/文件名}</div>
+    <div id="monaco-container"></div>
+  </div>
+
+  <script>
+    // 节点 ID → 源码位置的映射
+    const sourceMap = {
+      A: { file: 'src/foo.ts', startLine: 12, endLine: 30 },
+      B: { file: 'src/bar.ts', startLine: 45, endLine: 72 },
+      // ...
+    };
+
+    // showSource 回调：读取文件 → Monaco 展示 → 高亮行
+    function showSource(nodeId) { /* ... */ }
+  </script>
+
 </body>
 </html>
 ```
