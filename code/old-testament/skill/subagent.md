@@ -57,7 +57,13 @@ ot-coverage mark <file> <startLine>-<endLine> --depth ignored
 
 ## f. 输出
 
-循环 a ~ e, 直到分析完成后，将结果写入 `.ot/modules/{场景名称}.html`。
+**边分析边写入** `.ot/modules/{场景名称}.html`：
+
+1. **开始分析前**：先写入 HTML 骨架（`<head>`、CDN 引用、样式、左右分屏容器、空的 `sourceMap` 对象）
+2. **每完成一轮 a~e**：立即将这轮的内容追加到 HTML 中（描述段落、mermaid 片段、sourceMap 条目）
+3. **全部完成后**：补上闭合标签（`</body></html>`）
+
+这样即使中途被截断，文件中已有前面分析好的部分。
 
 图使用 Mermaid.js 语法，通过 CDN 渲染。
 
