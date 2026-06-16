@@ -13,14 +13,14 @@ description: 覆盖率驱动的代码理解分析。逐文件阅读源码，调�
 
 ```bash
 ot-coverage help
-ot-verify --help
+ot-verify help
 ```
 
 如果命令不存在，先安装：
 
 ```bash
 # 安装覆盖率工具
-curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/cli/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/cli/coverage/install.sh | sh
 
 # 安装校验工具
 curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/cli/verify/install.sh | sh

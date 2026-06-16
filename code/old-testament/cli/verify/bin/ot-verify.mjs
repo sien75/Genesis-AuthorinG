@@ -7,7 +7,26 @@ import { checkMermaidBlock } from '../lib/check-mermaid.mjs';
 import { checkSourceMapFormat, checkSourceMapCoverage } from '../lib/check-sourcemap.mjs';
 
 const args = process.argv.slice(2);
-const modulesDir = resolve(args[0] || '.ot/modules');
+const command = args[0];
+
+if (command === 'help' || command === '--help') {
+  console.log(`ot-verify — Validate OT module HTML output
+
+Usage:
+  ot-verify [modulesDir]    Verify all module HTML files in the directory (default: .ot/modules)
+  ot-verify help             Show this help
+
+Checks:
+  mermaid-syntax             Mermaid blocks can be parsed
+  sourcemap-json             window.__sourceMap is valid JSON
+  sourcemap-field            Each entry has file (string), startLine/endLine (positive integers)
+  sourcemap-range            startLine <= endLine
+  sourcemap-coverage         All mermaid nodes have a sourceMap entry
+  node-count                 Each diagram has <= 40 nodes (warning)`);
+  process.exit(0);
+}
+
+const modulesDir = resolve(command || '.ot/modules');
 
 if (!existsSync(modulesDir)) {
   console.error(`Directory not found: ${modulesDir}`);

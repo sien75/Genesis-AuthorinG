@@ -84,6 +84,7 @@
           readOnly: true,
           minimap: { enabled: false },
           lineNumbers: 'on',
+          stickyScroll: { enabled: true },
           scrollBeyondLastLine: false,
           folding: false,
           contextmenu: false,

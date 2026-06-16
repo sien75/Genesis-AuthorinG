@@ -1,11 +1,39 @@
 /**
  * Validate mermaid syntax and extract node IDs.
+ *
+ * - flowchart/graph: use mermaid + jsdom for syntax validation, regex for node ID extraction
+ * - other types: use @mermaid-js/parser for both
  */
 
 import { parse } from '@mermaid-js/parser';
+import { JSDOM } from 'jsdom';
 
 const PARSER_DIAGRAM_TYPES = new Set(['info', 'packet', 'pie', 'architecture', 'gitGraph', 'radar']);
 const FLOWCHART_DIAGRAM_TYPES = new Set(['graph', 'flowchart']);
+
+let mermaidInstance = null;
+
+async function getMermaid() {
+  if (mermaidInstance) return mermaidInstance;
+
+  const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+    pretendToBeVisual: true,
+    url: 'http://localhost'
+  });
+  global.window = dom.window;
+  global.document = dom.window.document;
+  Object.defineProperty(global, 'navigator', {
+    configurable: true,
+    value: dom.window.navigator
+  });
+  global.DOMParser = dom.window.DOMParser;
+  global.XMLSerializer = dom.window.XMLSerializer;
+
+  const { default: mermaid } = await import('mermaid');
+  mermaid.initialize({ startOnLoad: false });
+  mermaidInstance = mermaid;
+  return mermaid;
+}
 
 export async function checkMermaidBlock(code, blockIndex) {
   const errors = [];
@@ -13,6 +41,21 @@ export async function checkMermaidBlock(code, blockIndex) {
   const diagramType = getDiagramType(code);
 
   if (FLOWCHART_DIAGRAM_TYPES.has(diagramType)) {
+    // Syntax validation via mermaid main package
+    try {
+      const mermaid = await getMermaid();
+      await mermaid.parse(code);
+    } catch (e) {
+      const msg = e.message || String(e);
+      errors.push({
+        type: 'error',
+        rule: 'mermaid-syntax',
+        message: `Mermaid block #${blockIndex + 1}: syntax error — ${msg}`
+      });
+      return { errors, nodeIds };
+    }
+
+    // Node ID extraction via regex (parser doesn't support flowchart)
     nodeIds = extractFlowchartNodeIds(code);
     addNodeCountWarning(errors, nodeIds, blockIndex);
     return { errors, nodeIds };
@@ -27,7 +70,7 @@ export async function checkMermaidBlock(code, blockIndex) {
     return { errors, nodeIds };
   }
 
-  // 1. Syntax validation + AST extraction
+  // AST-based validation for supported types
   let ast;
   try {
     ast = await parse(diagramType, code);
@@ -41,10 +84,7 @@ export async function checkMermaidBlock(code, blockIndex) {
     return { errors, nodeIds };
   }
 
-  // 2. Extract node IDs from AST
   nodeIds = extractNodeIdsFromAst(ast);
-
-  // 3. Node count check
   addNodeCountWarning(errors, nodeIds, blockIndex);
 
   return { errors, nodeIds };
@@ -76,12 +116,10 @@ function extractNodeIdsFromAst(ast) {
   function walk(node) {
     if (!node || typeof node !== 'object') return;
 
-    // flowchart/graph AST: nodes are in body statements
     if (node.type === 'flowchart') {
       walkStatements(node.body);
     }
 
-    // Generic walk for unknown structures
     if (Array.isArray(node)) {
       node.forEach(walk);
       return;
@@ -96,15 +134,12 @@ function extractNodeIdsFromAst(ast) {
     if (!Array.isArray(statements)) return;
     for (const stmt of statements) {
       if (!stmt) continue;
-      // Edge statement: has left node, right nodes, and chain
       if (stmt.type === 'edge') {
         collectFromEdge(stmt);
       }
-      // Subgraph
       if (stmt.type === 'subgraph') {
         walkStatements(stmt.body);
       }
-      // Direct node statement
       if (stmt.id) {
         ids.add(stmt.id);
       }
@@ -112,7 +147,6 @@ function extractNodeIdsFromAst(ast) {
   }
 
   function collectFromEdge(edge) {
-    // An edge has nodes on the left and right
     if (edge.left && edge.left.id) {
       ids.add(edge.left.id);
     }
@@ -123,7 +157,6 @@ function extractNodeIdsFromAst(ast) {
         }
       }
     }
-    // Some AST formats nest edges differently
     if (edge.right && edge.right.id) {
       ids.add(edge.right.id);
     }

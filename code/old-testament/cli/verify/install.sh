@@ -26,4 +26,4 @@ chmod +x "${INSTALL_DIR}/ot-verify"
 
 echo "Installed ot-verify to ${INSTALL_DIR}/ot-verify"
 echo "Make sure ${INSTALL_DIR} is in your PATH."
-echo "Test with: ot-verify --help"
+echo "Test with: ot-verify help"
