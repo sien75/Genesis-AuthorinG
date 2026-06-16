@@ -57,110 +57,112 @@ ot-coverage mark <file> <startLine>-<endLine> --depth ignored
 
 ## f. 输出
 
-**边分析边写入** `.ot/modules/{场景名称}.html`：
+**边分析边写入** `.ot/modules/{场景名称}.html`。
 
-1. **开始分析前**：先写入 HTML 骨架（`<head>`、CDN 引用、样式、左右分屏容器、空的 `sourceMap` 对象）
-2. **每完成一轮 a~e**：立即将这轮的内容追加到 HTML 中（描述段落、mermaid 片段、sourceMap 条目）
-3. **全部完成后**：补上闭合标签（`</body></html>`）
+**你只负责内容**——要展示的文本、图、以及源码映射数据。不要写任何样式、类名（除了 mermaid）、HTML 壳（`<!DOCTYPE>`、`<head>`、`<body>` 等）、交互行为。这些由后续的渲染步骤统一处理。
 
-这样即使中途被截断，文件中已有前面分析好的部分。
+**唯一的例外**是源码映射：你需要写一个 `<script>` 标签，把 mermaid 节点 ID 和对应的源码信息（文件路径、行范围、代码片段）定义到 `window.__sourceMap` 上。这是因为你在分析时已经读了源码，直接把片段写进去最高效，不需要渲染时再去读文件。
 
-图使用 Mermaid.js 语法，通过 CDN 渲染。
+**边分析边追加**：
+1. **开始分析前**：创建文件，写入 `<h1>{场景名称}</h1>` 和描述段落
+2. **每完成一轮 a~e**：立即追加内容（描述、mermaid 图）
+3. **全部完成后**：在文件末尾写入 `<script>` 定义 `window.__sourceMap`
+4. 这样即使中途被截断，文件中已有前面分析好的部分
 
-### 源码查看器
+### 允许使用的标签
 
-页面采用左右分屏布局（黄金比例 `61.8% : 38.2%`）：
+| 标签 | 用途 |
+|------|------|
+| `<h1>` | 场景名称（每个文件只有一个） |
+| `<p>` | 描述段落 |
+| `<dl>` `<dt>` `<dd>` | 输入/输出 |
+| `<pre class="mermaid">` | 流程图（Mermaid 语法） |
+| `<ul>` `<li>` | 补充说明列表 |
+| `<script>` | 仅用于定义 `window.__sourceMap`，不写其他逻辑 |
 
-- **左侧**：主要内容区（描述、流程图等）
-- **右侧**：源码查看器面板，初始隐藏，点击流程图节点后展开
+不要使用其他标签、class（除了 mermaid）、data- 属性、style 属性。
 
-#### Mermaid 节点点击交互
+### Mermaid 节点 ID 规范
 
-- 将 Mermaid 的 `securityLevel` 设为 `'loose'` 以启用 callback
-- 每个流程图节点用 `click` 语法绑定回调，传入节点 ID
-- 回调函数根据节点 ID 查找对应的源码位置信息（`file`, `startLine`, `endLine`），在右侧面板中展示
+节点 ID 使用 kebab-case（如 `create-order`、`check-stock`），因为源码面板靠这些 ID 做源码锚定。
 
-#### 源码面板实现
+### 源码映射（window.__sourceMap）
 
-- 使用 **Monaco Editor**（VS Code 的编辑器内核），通过 CDN 加载
-- 设为 **只读模式**（`readOnly: true`）
-- 关闭所有辅助 UI：minimap、行号装饰以外的 gutter、右键菜单、悬浮提示、代码折叠等，只保留行号和代码内容
-- 面板顶部显示当前文件的**相对路径和文件名**
-- 通过 `revealLineInCenter()` 滚动到目标行，用 `deltaDecorations()` 高亮 `startLine` 到 `endLine` 的行范围（背景色标记）
-
-#### 源码文件读取
-
-- 使用 **File System Access API**（`window.showDirectoryPicker()`）读取本地项目文件
-- 页面加载时提示用户选择项目根目录，获取目录句柄后缓存
-- 点击节点时，根据节点绑定的相对文件路径，从目录句柄中定位并读取文件内容
-- 如果用户未授权目录或文件不存在，在源码面板中显示提示信息
-
-### 页面结构参考
+在文件末尾写一个 `<script>` 标签，定义 `window.__sourceMap` 对象。每个条目是一个 mermaid 节点 ID 到源码信息的映射：
 
 ```html
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>{场景名称}</title>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-  <script>mermaid.initialize({startOnLoad: true, securityLevel: 'loose'});</script>
-  <!-- Monaco Editor 通过 CDN 加载（如 jsdelivr 或 unpkg 上的 monaco-editor） -->
-</head>
-<body>
+<script>
+window.__sourceMap = {
+  "create-order": {
+    "file": "src/order/create.ts",
+    "startLine": 12,
+    "endLine": 35,
+    "snippet": "async function createOrder(cart, address) {\n  const order = await db.orders.create({\n    items: cart.items,\n    address,\n    status: 'pending'\n  });\n  return order;\n}"
+  },
+  "check-stock": {
+    "file": "src/order/stock.ts",
+    "startLine": 8,
+    "endLine": 22,
+    "snippet": "async function checkStock(items) {\n  for (const item of items) {\n    const stock = await db.products.getStock(item.id);\n    if (stock < item.quantity) return false;\n  }\n  return true;\n}"
+  }
+};
+</script>
+```
 
-  <!-- 左侧内容区（61.8%） -->
-  <div id="main-content">
-    <p><a href="../index.html">← 返回概述</a></p>
+字段说明：
+- `file`：源文件相对路径
+- `startLine` / `endLine`：代码片段在文件中的行范围
+- `snippet`：**实际的源码内容**，从你读过的文件中直接复制。这是用户点击节点后看到的代码
 
-    <h1>{场景名称}</h1>
-    <p>（通俗的模块描述）</p>
+只有绑定了源码位置的节点才写映射。decision 节点（菱形判断）通常没有独立源码，不需要写。
 
-    <h2>输入 / 输出</h2>
-    <ul>
-      <li>📥 输入：（业务含义）</li>
-      <li>📤 输出：（业务含义）</li>
-    </ul>
+**重要**：snippet 中的代码要原样复制，保持缩进和换行。用 `\n` 表示换行，用 `\\` 转义反斜杠，用 `\"` 转义双引号。确保是合法的 JSON 字符串。
 
-    <h2>流程</h2>
-    <pre class="mermaid">
-      graph TD
-        A["步骤一"] --> B["步骤二"]
-        B --> C{"条件判断"}
-        C -->|"是"| D["步骤三"]
-        C -->|"否"| E["错误处理"]
-        click A showSource "查看源码"
-        click B showSource "查看源码"
-        click D showSource "查看源码"
-        click E showSource "查看源码"
-    </pre>
+### 输出示例
 
-    <h2>补充说明</h2>
-    <ul>
-      <li>（notes 内容）</li>
-    </ul>
-  </div>
+```html
+<h1>订单支付</h1>
 
-  <!-- 右侧源码面板（38.2%），初始隐藏 -->
-  <div id="source-panel">
-    <div id="source-header">{文件路径/文件名}</div>
-    <div id="monaco-container"></div>
-  </div>
+<p>用户在购物车确认后，会进入支付流程。这个模块负责跟第三方支付平台对接：
+先创建一笔待支付的订单，然后调支付宝/微信的接口拿到支付链接，
+用户付完钱后平台会回调通知我们，我们再把订单状态改成"已支付"，
+同时通知仓库发货。</p>
 
-  <script>
-    // 节点 ID → 源码位置的映射
-    const sourceMap = {
-      A: { file: 'src/foo.ts', startLine: 12, endLine: 30 },
-      B: { file: 'src/bar.ts', startLine: 45, endLine: 72 },
-      // ...
-    };
+<dl>
+  <dt>输入</dt>
+  <dd>用户选好的商品清单 + 收货地址 + 支付方式</dd>
+  <dt>输出</dt>
+  <dd>一笔完成支付的订单（仓库那边会收到发货通知）</dd>
+</dl>
 
-    // showSource 回调：读取文件 → Monaco 展示 → 高亮行
-    function showSource(nodeId) { /* ... */ }
-  </script>
+<pre class="mermaid">
+graph TD
+  create-order["创建订单"] --> check-stock["检查库存"]
+  check-stock --> stock-enough{"库存够吗？"}
+  stock-enough -->|不够| stock-fail["返回库存不足"]
+  stock-enough -->|够| call-payment["调支付平台接口"]
+  call-payment --> payment-ok{"支付成功？"}
+  payment-ok -->|失败| payment-fail["标记支付失败"]
+  payment-ok -->|成功| update-status["更新订单状态为已支付"]
+  update-status --> notify-warehouse["通知仓库发货"]
+</pre>
 
-</body>
-</html>
+<ul>
+  <li>支付回调有签名验证，防止伪造通知</li>
+  <li>如果回调超时 30 分钟没收到，系统会主动去支付平台查一次</li>
+  <li>订单状态变更会同时写一条流水记录，方便对账</li>
+</ul>
+
+<script>
+window.__sourceMap = {
+  "create-order": {
+    "file": "src/order/create.ts",
+    "startLine": 12,
+    "endLine": 35,
+    "snippet": "async function createOrder(cart, address) {\n  const order = await db.orders.create({\n    items: cart.items,\n    address,\n    status: 'pending'\n  });\n  return order;\n}"
+  },
+};
+</script>
 ```
 
 ## 描述风格

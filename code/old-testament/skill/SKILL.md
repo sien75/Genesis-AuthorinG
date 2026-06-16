@@ -116,63 +116,73 @@ ot-coverage status
 
 ### 第 4 步：收尾
 
-将最终总结写入 `.ot/index.html`。使用纯 HTML，不写 CSS 样式。
+将首页写入 `.ot/modules/index.html`。和 subagent 一样，**只写内容，不写样式/脚本/HTML 壳**。
 
 index.html 需要包含：
-- 项目概述（通俗大白话）
-- **用户行为汇总**：把所有模块涉及的用户行为/外部调用汇总到一起——用户能做什么、每个操作会触发什么。每条注明涉及哪个模块（链接到对应的 module 页面）。这让读者一进来就知道"这个系统能干什么"
-- 模块列表，每个模块**必须是可点击的链接**，指向 `modules/{场景名称}.html`
-- 覆盖率统计
+- `<h1>` 项目名称
+- `<p>` 项目概述（通俗大白话）
+- **用户行为汇总**：把所有模块涉及的用户行为/外部调用汇总到一起。每条注明涉及哪个模块。这让读者一进来就知道"这个系统能干什么"
+- 模块列表，每个模块用 `<section>` 包裹，`<h2>` 是模块名（要和对应 modules/{场景名称}.html 的 `<h1>` 一致），`<p>` 是一句话概括
+- 覆盖率数据不需要写，由 `ot render` 自动注入
 
-写完后，启动一个简单的静态文件服务器，让用户在浏览器中浏览：
+首页示例：
+
+```html
+<h1>ShopX 电商后端</h1>
+
+<p>这是 ShopX 的后端服务，负责用户注册登录、商品浏览、下单支付、
+仓库发货、售后退款。Node.js + Express，数据存 PostgreSQL，
+支付对接支付宝和微信。</p>
+
+<h2>用户能做什么</h2>
+<ul>
+  <li>注册账号、登录 → 用户注册与登录</li>
+  <li>搜索商品、浏览详情 → 商品浏览与搜索</li>
+  <li>加购物车、下单、支付 → 订单支付</li>
+</ul>
+
+<section>
+  <h2>用户注册与登录</h2>
+  <p>把手机号/邮箱变成一个可登录的用户账号</p>
+</section>
+
+<section>
+  <h2>订单支付</h2>
+  <p>把购物车里的商品变成一笔完成支付的订单</p>
+</section>
+```
+
+写完后，进入渲染步骤：将 `.ot/modules/` 下的内容片段组装成完整的交互式 HTML，输出到 `.ot/views/`。
+
+### 第 4a 步：渲染
+
+读取 `.ot/modules/` 下所有 HTML 片段，逐个组装成完整的 HTML 页面，输出到 `.ot/views/`。
+
+对每个文件做以下处理：
+
+1. **套 HTML 壳**——补齐 `<!DOCTYPE>`、`<head>`、`<body>`，从 `<h1>` 提取 `<title>`
+2. **引入静态资源**——在 `<head>` 中引入 `assets/ot.css`，在 `<body>` 末尾引入 `assets/ot.js`（ot.js 会自动从 CDN 加载 mermaid 和 Monaco Editor，不需要手动引入）
+3. **加导航**——模块页加"← 返回概述"链接指向 index.html
+4. **处理首页链接**——index.html 中每个 `<section>` 的 `<h2>` 文字匹配到对应的模块文件名，将 section 包裹为可点击的链接
+5. **注入覆盖率**——在首页末尾追加覆盖率信息（从 `ot-coverage status` 获取）
+6. **加源码面板容器**——在模块页 `<body>` 中追加 `<aside id="source-panel"><div id="source-header"></div><div id="monaco-container"></div></aside>`
+7. **保留 sourceMap**——subagent 已经在内容文件末尾写好了 `<script>window.__sourceMap = {...}</script>`，原样保留即可，不需要额外处理
+
+静态资源文件（ot.css、ot.js）位于本 skill 同目录下的 `assets/` 中。将它们复制到 `.ot/views/assets/`：
 
 ```bash
-npx serve .ot
+mkdir -p .ot/views/assets
+```
+
+然后将 skill 目录下的 `assets/ot.css` 和 `assets/ot.js` 复制到 `.ot/views/assets/`。
+
+组装完成后，启动静态文件服务器：
+
+```bash
+npx serve .ot/views
 ```
 
 告诉用户打开浏览器访问对应的地址（默认 http://localhost:3000）即可浏览分析报告。
-
-页面结构参考：
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>{项目名称}</title>
-</head>
-<body>
-  <h1>{项目名称}</h1>
-  <p>（通俗的项目概述，像给新人介绍这个项目是干什么的）</p>
-
-  <h2>用户能做什么</h2>
-  <!-- 汇总所有模块的用户行为，注明涉及哪个模块 -->
-  <ul>
-    <li>{用户操作描述} → <a href="modules/{场景名称}.html">{模块名}</a></li>
-    <!-- 更多操作... -->
-  </ul>
-
-  <h2>模块</h2>
-  <ul>
-    <li>
-      <a href="modules/{场景名称}.html"><strong>{模块名}</strong></a>
-      — {一句话概括：把什么变成什么}
-    </li>
-    <!-- 更多模块... -->
-  </ul>
-
-  <h2>覆盖率</h2>
-  <p>（ot-coverage status 的最终数字）</p>
-  <ul>
-    <li>Deep: xx 行 (xx%)</li>
-    <li>Mapped: xx 行</li>
-    <li>Ignored: xx 行</li>
-    <li>Uncovered: xx 行</li>
-    <li>总覆盖率: xx%</li>
-  </ul>
-</body>
-</html>
-```
 
 ## 关键约束
 
