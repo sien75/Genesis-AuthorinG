@@ -17,6 +17,7 @@ Usage:
   ot-verify help             Show this help
 
 Checks:
+  mermaid-single-diagram     Each mermaid block contains exactly one diagram
   mermaid-syntax             Mermaid blocks can be parsed
   sourcemap-json             window.__sourceMap is valid JSON
   sourcemap-field            Each entry has file (string), startLine/endLine (positive integers)

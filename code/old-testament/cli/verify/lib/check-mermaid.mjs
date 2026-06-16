@@ -10,6 +10,7 @@ import { JSDOM } from 'jsdom';
 
 const PARSER_DIAGRAM_TYPES = new Set(['info', 'packet', 'pie', 'architecture', 'gitGraph', 'radar']);
 const FLOWCHART_DIAGRAM_TYPES = new Set(['graph', 'flowchart']);
+const DIAGRAM_HEADER_RE = /^(?:graph|flowchart|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|journey|gantt|pie|gitGraph|mindmap|timeline|quadrantChart|requirementDiagram|C4(?:Context|Container|Component|Dynamic|Deployment)|info|packet|architecture|radar(?:-beta)?)(?:\s|$)/;
 
 let mermaidInstance = null;
 
@@ -38,6 +39,17 @@ async function getMermaid() {
 export async function checkMermaidBlock(code, blockIndex) {
   const errors = [];
   let nodeIds = [];
+  const diagramHeaders = getDiagramHeaders(code);
+
+  if (diagramHeaders.length > 1) {
+    errors.push({
+      type: 'error',
+      rule: 'mermaid-single-diagram',
+      message: `Mermaid block #${blockIndex + 1}: expected one diagram per block, found ${diagramHeaders.length} (${diagramHeaders.join(', ')})`
+    });
+    return { errors, nodeIds };
+  }
+
   const diagramType = getDiagramType(code);
 
   if (FLOWCHART_DIAGRAM_TYPES.has(diagramType)) {
@@ -98,6 +110,14 @@ function getDiagramType(code) {
 
   if (!line) return '';
   return line.split(/\s+/)[0];
+}
+
+function getDiagramHeaders(code) {
+  return code
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith('%%') && !l.startsWith('---') && DIAGRAM_HEADER_RE.test(l))
+    .map(l => l.split(/\s+/)[0]);
 }
 
 function addNodeCountWarning(errors, nodeIds, blockIndex) {

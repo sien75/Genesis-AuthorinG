@@ -226,7 +226,7 @@ npx serve .ot/views
 
 ```bash
 # 卸载覆盖率工具
-curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/cli/uninstall.sh | sh
+curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/cli/coverage/uninstall.sh | sh
 
 # 卸载校验工具
 curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/cli/verify/uninstall.sh | sh
