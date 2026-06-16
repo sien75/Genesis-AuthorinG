@@ -1,6 +1,41 @@
 (function () {
   'use strict';
 
+  // -- Project root directory handle (File System Access API) --
+  var rootDirHandle = null;
+
+  function promptForProjectRoot() {
+    var banner = document.createElement('div');
+    banner.id = 'ot-root-banner';
+    banner.innerHTML =
+      '<span>Click to select the project root directory for source code viewing</span>' +
+      '<button id="ot-pick-root">Open Project Folder</button>';
+    document.body.prepend(banner);
+
+    document.getElementById('ot-pick-root').addEventListener('click', function () {
+      window.showDirectoryPicker({ mode: 'read' }).then(function (handle) {
+        rootDirHandle = handle;
+        banner.remove();
+      }).catch(function () {});
+    });
+  }
+
+  async function readFileFromRoot(relativePath) {
+    if (!rootDirHandle) return null;
+    var parts = relativePath.split('/').filter(Boolean);
+    var current = rootDirHandle;
+    try {
+      for (var i = 0; i < parts.length - 1; i++) {
+        current = await current.getDirectoryHandle(parts[i]);
+      }
+      var fileHandle = await current.getFileHandle(parts[parts.length - 1]);
+      var file = await fileHandle.getFile();
+      return await file.text();
+    } catch (e) {
+      return null;
+    }
+  }
+
   // -- Load mermaid from CDN and render diagrams --
   function loadMermaid() {
     var script = document.createElement('script');
@@ -100,18 +135,33 @@
     return map[ext] || 'plaintext';
   }
 
-  function showSource(nodeId) {
+  async function showSource(nodeId) {
     if (!panel) return;
     var info = sourceMap[nodeId];
     if (!info) return;
+
+    // Prompt for project root if not yet selected
+    if (!rootDirHandle) {
+      try {
+        rootDirHandle = await window.showDirectoryPicker({ mode: 'read' });
+      } catch (e) {
+        return;
+      }
+      var banner = document.getElementById('ot-root-banner');
+      if (banner) banner.remove();
+    }
 
     headerEl.querySelector('.file-path').textContent = info.file;
     headerEl.querySelector('.line-range').textContent =
       ':' + info.startLine + '-' + info.endLine;
 
-    if (!info.snippet) {
+    // Read file content from local filesystem
+    var content = await readFileFromRoot(info.file);
+    if (!content) {
       panel.classList.add('visible');
-      if (editor) editor.setValue('// Source not available');
+      initMonaco(function () {
+        editor.setValue('// Could not read file: ' + info.file);
+      });
       return;
     }
 
@@ -121,20 +171,23 @@
       var lang = guessLanguage(info.file);
       var model = editor.getModel();
       monaco.editor.setModelLanguage(model, lang);
-      editor.setValue(info.snippet);
+      editor.setValue(content);
 
-      var lineCount = info.snippet.split('\n').length;
-      var startOffset = 1;
-      var endOffset = lineCount;
+      // Set line numbers to match the actual file
+      editor.updateOptions({ lineNumbers: 'on' });
 
-      editor.revealLineInCenter(Math.floor((startOffset + endOffset) / 2));
+      // Scroll to and highlight the relevant lines
+      var startLine = info.startLine;
+      var endLine = info.endLine;
+
+      editor.revealRangeInCenter(new monaco.Range(startLine, 1, endLine, 1));
 
       editor.deltaDecorations(
         editor.getModel().getAllDecorations()
           .filter(function (d) { return d.options.className === 'ot-highlight-line'; })
           .map(function (d) { return d.id; }),
         [{
-          range: new monaco.Range(startOffset, 1, endOffset, 1),
+          range: new monaco.Range(startLine, 1, endLine, 1),
           options: {
             isWholeLine: true,
             className: 'ot-highlight-line',
@@ -161,8 +214,12 @@
     });
   }
 
-  // -- Bootstrap: load mermaid, which triggers render, which triggers click handlers --
+  // -- Bootstrap --
   if (document.querySelectorAll('.mermaid').length > 0) {
     loadMermaid();
+    // Show banner to select project root on page load
+    if (Object.keys(sourceMap).length > 0) {
+      promptForProjectRoot();
+    }
   }
 })();

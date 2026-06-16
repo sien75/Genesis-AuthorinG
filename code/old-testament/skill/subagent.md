@@ -30,6 +30,8 @@
 - **每个节点必须绑定源码位置**：`{file, startLine, endLine}`
 - **所有分支都画**，异常路径不能省
 - 节点标签用大白话，不用代码术语
+- **一个图只表示一个流程**，使用 `graph TD`（竖向排列）
+- **单个图节点数不超过 40**——如果一个流程节点过多，拆成多个子流程图，每个图聚焦一段逻辑，用文字说明衔接关系
 
 如果沿途自然遇到了 `{辅助视图}` 中提到的模式（比如明显的状态机、决策表、通信边界等），顺手标注出来，但不需要刻意寻找。
 
@@ -88,7 +90,7 @@ ot-coverage mark <file> <startLine>-<endLine> --depth ignored
 
 ### 源码映射（window.__sourceMap）
 
-在文件末尾写一个 `<script>` 标签，定义 `window.__sourceMap` 对象。每个条目是一个 mermaid 节点 ID 到源码信息的映射：
+在文件末尾写一个 `<script>` 标签，定义 `window.__sourceMap` 对象。每个条目是一个 mermaid 节点 ID 到源码位置的映射：
 
 ```html
 <script>
@@ -96,14 +98,12 @@ window.__sourceMap = {
   "create-order": {
     "file": "src/order/create.ts",
     "startLine": 12,
-    "endLine": 35,
-    "snippet": "async function createOrder(cart, address) {\n  const order = await db.orders.create({\n    items: cart.items,\n    address,\n    status: 'pending'\n  });\n  return order;\n}"
+    "endLine": 35
   },
   "check-stock": {
     "file": "src/order/stock.ts",
     "startLine": 8,
-    "endLine": 22,
-    "snippet": "async function checkStock(items) {\n  for (const item of items) {\n    const stock = await db.products.getStock(item.id);\n    if (stock < item.quantity) return false;\n  }\n  return true;\n}"
+    "endLine": 22
   }
 };
 </script>
@@ -111,12 +111,7 @@ window.__sourceMap = {
 
 字段说明：
 - `file`：源文件相对路径
-- `startLine` / `endLine`：代码片段在文件中的行范围
-- `snippet`：**实际的源码内容**，从你读过的文件中直接复制。这是用户点击节点后看到的代码
-
-只有绑定了源码位置的节点才写映射。decision 节点（菱形判断）通常没有独立源码，不需要写。
-
-**重要**：snippet 中的代码要原样复制，保持缩进和换行。用 `\n` 表示换行，用 `\\` 转义反斜杠，用 `\"` 转义双引号。确保是合法的 JSON 字符串。
+- `startLine` / `endLine`：代码在文件中的行范围
 
 ### 输出示例
 
@@ -158,8 +153,7 @@ window.__sourceMap = {
   "create-order": {
     "file": "src/order/create.ts",
     "startLine": 12,
-    "endLine": 35,
-    "snippet": "async function createOrder(cart, address) {\n  const order = await db.orders.create({\n    items: cart.items,\n    address,\n    status: 'pending'\n  });\n  return order;\n}"
+    "endLine": 35
   },
 };
 </script>
@@ -190,7 +184,7 @@ window.__sourceMap = {
 
 1. **覆盖率由程序算**——必须调 `ot-coverage` 标记，不 mark 就不算读过
 2. **流程图要完整**——所有分支、异常路径、外部调用都要画
-3. **每个节点必须绑源码位置**——没有位置的节点不写
+3. **每个节点必须绑源码位置**——所有 mermaid 节点（包括菱形判断节点）都必须在 sourceMap 中有对应条目
 4. **不靠猜**——遇到不确定的信息，调语言工具确认
 5. **用用户的语言**——所有内容使用用户的语言编写
 6. **通俗易懂**——像一个耐心的老手在给新人讲系统，不用术语堆砌

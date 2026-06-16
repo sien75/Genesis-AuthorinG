@@ -257,3 +257,30 @@ li {
 .ot-coverage-legend .mapped::before { background: #ff9800; }
 .ot-coverage-legend .ignored::before { background: #9e9e9e; }
 .ot-coverage-legend .unknown::before { background: #e0e0e0; }
+
+/* -- Project root banner -- */
+
+#ot-root-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1.25rem;
+  background: #fffde7;
+  border-bottom: 1px solid #f0e68c;
+  font-size: 0.9rem;
+  color: #5d4037;
+}
+
+#ot-root-banner button {
+  padding: 0.35rem 0.85rem;
+  border: 1px solid #c9a834;
+  border-radius: 4px;
+  background: #fff;
+  color: #5d4037;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+#ot-root-banner button:hover {
+  background: #f5f0d0;
+}

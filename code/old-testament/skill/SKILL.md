@@ -9,19 +9,24 @@ description: 覆盖率驱动的代码理解分析。逐文件阅读源码，调�
 
 ## 前置条件
 
-检查 `ot-coverage` 命令是否可用：
+检查 `ot-coverage` 和 `ot-verify` 命令是否可用：
 
 ```bash
 ot-coverage help
+ot-verify --help
 ```
 
 如果命令不存在，先安装：
 
 ```bash
+# 安装覆盖率工具
 curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/cli/install.sh | sh
+
+# 安装校验工具
+curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/cli/verify/install.sh | sh
 ```
 
-安装后确认 `~/.local/bin` 在 PATH 中，再次运行 `ot-coverage help` 验证。
+安装后确认 `~/.local/bin` 在 PATH 中，再次运行上述命令验证。
 
 ## 工作流程
 
@@ -32,8 +37,6 @@ ot-coverage init [目标项目目录]
 ```
 
 在目标项目目录下执行，建立文件基线。
-
-### 第 2 步：读概览
 
 读项目的概览文件，形成对项目的第一印象。概览文件是那些能快速告诉你"这个项目是什么、怎么组织的"的文件，例如：
 
@@ -50,7 +53,7 @@ ot-coverage init [目标项目目录]
 ot-coverage mark <file> <startLine>-<endLine> --depth mapped
 ```
 
-### 第 2a 步：选择语言工具链
+### 第 1a 步：选择语言工具链
 
 读取 `lang-toolchains.md`（与本文件同目录），根据第 2 步识别到的技术栈，选择本次分析要用的工具。
 
@@ -63,7 +66,7 @@ ot-coverage mark <file> <startLine>-<endLine> --depth mapped
 
 最终确定一份**工具清单**（例如：`["gopls", "ripgrep"]`），后续传给每个 subagent。
 
-### 第 2b 步：选择主视图
+### 第 1b 步：选择主视图
 
 读取 `views.md`（与本文件同目录），根据项目的领域和特点，选择本次分析的**主视图**——也就是 subagent 用来组织叙事的核心视角。
 
@@ -82,7 +85,9 @@ ot-coverage mark <file> <startLine>-<endLine> --depth mapped
 
 最终确定**主视图**和可选的**辅助视图列表**，后续传给每个 subagent。
 
-### 第 3 步：识别入口并分发 subagent
+### 第 2 步：生成 html
+
+### 第 2a 步：识别入口并分发 agent
 
 根据第 2 步的概览，识别项目的入口点。入口点是用户或外部系统触发项目功能的起点，例如：
 
@@ -114,9 +119,9 @@ ot-coverage status
 - **不需要读的文件**（如生成的代码、lock 文件、二进制资源、配置模板等）可以用 `ot-coverage mark <file> 1-<总行数> --depth ignored` 跳过
 - **但要严格**：只要文件能读、且跟业务流程相关，就一定要读，不能因为"差不多了"就跳过
 
-### 第 4 步：收尾
+### 第 2b 步：生成汇总 html
 
-将首页写入 `.ot/modules/index.html`。和 subagent 一样，**只写内容，不写样式/脚本/HTML 壳**。
+完成每个模块的 html 编写后，将首页写入 `.ot/modules/index.html`。和 subagent 一样，**只写内容，不写样式/脚本/HTML 壳**。
 
 index.html 需要包含：
 - `<h1>` 项目名称
@@ -152,9 +157,35 @@ index.html 需要包含：
 </section>
 ```
 
-写完后，进入渲染步骤：将 `.ot/modules/` 下的内容片段组装成完整的交互式 HTML，输出到 `.ot/views/`。
+写完后，进入校验步骤。
 
-### 第 4a 步：渲染
+### 第 2c 步：校验
+
+对 `.ot/modules/` 下所有模块 HTML（不含 index.html）运行校验：
+
+```bash
+ot-verify .ot/modules
+```
+
+校验内容：
+1. **Mermaid 语法**——是否能被正确解析
+2. **sourceMap JSON 格式**——是否为合法 JSON
+3. **sourceMap 字段完整性**——每个 entry 必须有 `file`(string)、`startLine`(number)、`endLine`(number)，且 `startLine <= endLine`
+4. **sourceMap 节点覆盖率**——所有 mermaid 节点都应有对应的 sourceMap entry
+5. **单图节点数**——不超过 40
+
+如果有 error：
+
+1. 读取校验输出，定位问题文件和具体错误
+2. 启动 subagent 修复对应的 `.ot/modules/{文件}.html`——把校验错误信息和原 HTML 文件路径传给 subagent，让它读文件、修复问题
+3. 修复后重新运行 `ot-verify .ot/modules`
+4. 重复上述过程，直到校验通过（0 errors）
+
+warning（如节点数超过 40）不阻塞流程，但应记录下来。
+
+校验通过后，进入渲染步骤。
+
+### 第 3 步：渲染
 
 读取 `.ot/modules/` 下所有 HTML 片段，逐个组装成完整的 HTML 页面，输出到 `.ot/views/`。
 
@@ -166,7 +197,7 @@ index.html 需要包含：
 4. **处理首页链接**——index.html 中每个 `<section>` 的 `<h2>` 文字匹配到对应的模块文件名，将 section 包裹为可点击的链接
 5. **注入覆盖率**——在首页末尾追加覆盖率信息（从 `ot-coverage status` 获取）
 6. **加源码面板容器**——在模块页 `<body>` 中追加 `<aside id="source-panel"><div id="source-header"></div><div id="monaco-container"></div></aside>`
-7. **保留 sourceMap**——subagent 已经在内容文件末尾写好了 `<script>window.__sourceMap = {...}</script>`，原样保留即可，不需要额外处理
+7. **保留 sourceMap**——subagent 已经在内容文件末尾写好了 `<script>window.__sourceMap = {...}</script>`（只含 file、startLine、endLine，不含源码内容），原样保留即可，不需要额外处理。页面加载后会通过 File System Access API 让用户选择项目根目录，点击流程图节点时从本地文件系统读取源码并在 Monaco Editor 中展示
 
 静态资源文件（ot.css、ot.js）位于本 skill 同目录下的 `assets/` 中。将它们复制到 `.ot/views/assets/`：
 
@@ -189,10 +220,14 @@ npx serve .ot/views
 - **用用户的语言**——所有内容和回复使用用户的语言编写
 - **通俗易懂（严格执行）**——像团队里的老手给刚接手这个项目的新人讲系统。新人懂代码，但不懂这个项目的业务。所以不需要解释什么是函数，但要解释"这个函数在业务上是干嘛的"
 
-## 卸载 ot-coverage
+## 卸载
 
 如果不再需要，可以卸载：
 
 ```bash
+# 卸载覆盖率工具
 curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/cli/uninstall.sh | sh
+
+# 卸载校验工具
+curl -fsSL https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/cli/verify/uninstall.sh | sh
 ```

@@ -5,7 +5,7 @@ INSTALL_DIR="${HOME}/.local/bin"
 LIB_DIR="${INSTALL_DIR}/ot-coverage-lib"
 mkdir -p "${LIB_DIR}/bin" "${LIB_DIR}/lib"
 
-REPO_BASE="https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/cli"
+REPO_BASE="https://raw.githubusercontent.com/sien75/Genesis-AuthorinG/refs/heads/main/code/old-testament/cli/coverage"
 
 echo "Downloading ot-coverage..."
 curl -fsSL "${REPO_BASE}/bin/ot-coverage.mjs" -o "${LIB_DIR}/bin/ot-coverage.mjs"

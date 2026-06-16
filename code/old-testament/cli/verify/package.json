@@ -1,0 +1,11 @@
+{
+  "name": "ot-verify",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "ot-verify": "./bin/ot-verify.mjs"
+  },
+  "dependencies": {
+    "@mermaid-js/parser": "^0.4.0"
+  }
+}
