@@ -24,4 +24,6 @@ npx skills add sien75/Genesis-AuthorinG
 使用 ot-analyzer 分析这个项目
 ```
 
-注意：分析项目会消耗比较多的 token。
+> 注意：分析项目会消耗比较多的 token。
+
+分析完成后 Agent 会提示你打开 url, 打开后需关联到本地项目目录, 关联完成后就可以对应代码阅读文档了.

@@ -207,13 +207,13 @@ mkdir -p .ot/views/assets
 
 然后将 skill 目录下的 `assets/ot.css` 和 `assets/ot.js` 复制到 `.ot/views/assets/`。
 
-组装完成后，启动静态文件服务器：
+组装完成后，选取一个未被占用的端口（如 5678），启动静态文件服务器：
 
 ```bash
-npx serve .ot/views
+npx serve .ot/views -l <端口>
 ```
 
-告诉用户打开浏览器访问对应的地址（默认 http://localhost:3000）即可浏览分析报告。
+告诉用户打开浏览器访问对应的地址即可浏览分析报告。
 
 ## 关键约束
 

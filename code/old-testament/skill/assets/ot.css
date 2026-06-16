@@ -9,24 +9,33 @@ body {
 
 /* -- Layout: main + source panel -- */
 
-.ot-layout {
+body.ot-layout {
   display: flex;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
 }
 
-.ot-main {
-  flex: 1;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 2rem 2.5rem;
-}
-
-.ot-layout .ot-main {
-  margin: 0;
-  flex: 0 0 62%;
+body.ot-layout > .ot-main {
+  flex: 1 1 62%;
   max-width: 62%;
   overflow-y: auto;
   height: 100vh;
+  padding: 2rem 2.5rem;
+}
+
+body:not(.ot-layout) > * {
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 2.5rem;
+  padding-right: 2.5rem;
+}
+
+body:not(.ot-layout) > a {
+  display: block;
+  text-decoration: none;
+  color: inherit;
 }
 
 /* -- Source panel -- */
@@ -198,6 +207,22 @@ li {
 }
 
 .ot-module-card:hover {
+  border-color: #bbb;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+body:not(.ot-layout) > a > section {
+  display: block;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin: 1rem 0;
+  color: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+body:not(.ot-layout) > a > section:hover {
   border-color: #bbb;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
