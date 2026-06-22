@@ -11,6 +11,16 @@ import { JSDOM } from 'jsdom';
 const PARSER_DIAGRAM_TYPES = new Set(['info', 'packet', 'pie', 'architecture', 'gitGraph', 'radar']);
 const FLOWCHART_DIAGRAM_TYPES = new Set(['graph', 'flowchart']);
 const DIAGRAM_HEADER_RE = /^(?:graph|flowchart|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|journey|gantt|pie|gitGraph|mindmap|timeline|quadrantChart|requirementDiagram|C4(?:Context|Container|Component|Dynamic|Deployment)|info|packet|architecture|radar(?:-beta)?)(?:\s|$)/;
+const HTML_ESCAPE_HINTS = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;'
+};
+const HTML_ESCAPE_SUMMARY = Object.entries(HTML_ESCAPE_HINTS)
+  .map(([char, entity]) => `${char}=${entity}`)
+  .join(', ');
 
 let mermaidInstance = null;
 
@@ -40,6 +50,7 @@ export async function checkMermaidBlock(code, blockIndex) {
   const errors = [];
   let nodeIds = [];
   const diagramHeaders = getDiagramHeaders(code);
+  errors.push(...checkHtmlEscapes(code, blockIndex));
 
   if (diagramHeaders.length > 1) {
     errors.push({
@@ -128,6 +139,61 @@ function addNodeCountWarning(errors, nodeIds, blockIndex) {
       message: `Mermaid block #${blockIndex + 1}: ${nodeIds.length} nodes (max 40)`
     });
   }
+}
+
+function checkHtmlEscapes(code, blockIndex) {
+  const issues = [];
+  const lines = code.split(/\r?\n/);
+
+  for (let i = 0; i < lines.length; i++) {
+    for (const finding of findUnescapedHtmlChars(lines[i])) {
+      issues.push({
+        type: 'error',
+        rule: 'mermaid-html-escape',
+        message: `Mermaid block #${blockIndex + 1}, line ${i + 1}: unescaped HTML character "${finding.char}" found; use ${HTML_ESCAPE_HINTS[finding.char]}. Common escapes: ${HTML_ESCAPE_SUMMARY}`
+      });
+    }
+  }
+
+  return issues;
+}
+
+function findUnescapedHtmlChars(line) {
+  const findings = [];
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '&' && !isHtmlEntity(line, i)) {
+      findings.push({ char });
+      continue;
+    }
+
+    if (char === '<' && !isMermaidLeftArrow(line, i)) {
+      findings.push({ char });
+      continue;
+    }
+
+    if (char === '>' && !isMermaidRightArrow(line, i)) {
+      findings.push({ char });
+      continue;
+    }
+  }
+
+  return findings;
+}
+
+function isHtmlEntity(line, index) {
+  return /^&(?:[a-z][a-z0-9]+|#[0-9]+|#x[0-9a-f]+);/i.test(line.slice(index));
+}
+
+function isMermaidLeftArrow(line, index) {
+  return line[index + 1] === '-';
+}
+
+function isMermaidRightArrow(line, index) {
+  const prev = line[index - 1];
+  return prev === '-' || prev === '=';
 }
 
 function extractNodeIdsFromAst(ast) {
