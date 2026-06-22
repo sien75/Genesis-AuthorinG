@@ -92,6 +92,7 @@
     script.onload = function () {
       mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });
       mermaid.run().then(function () {
+        attachMermaidZoomControls();
         attachClickHandlers();
       });
     };
@@ -104,7 +105,13 @@
   var layoutWrapped = false;
 
   function ensureLayout() {
-    if (layoutWrapped) return;
+    if (layoutWrapped) return document.querySelector('.ot-main');
+
+    var previousScrollTop = window.pageYOffset ||
+      document.documentElement.scrollTop ||
+      document.body.scrollTop ||
+      0;
+
     layoutWrapped = true;
     var main = document.createElement('div');
     main.className = 'ot-main';
@@ -115,6 +122,14 @@
     });
     document.body.insertBefore(main, panel);
     document.body.classList.add('ot-layout');
+
+    window.scrollTo(0, 0);
+    main.scrollTop = previousScrollTop;
+    requestAnimationFrame(function () {
+      main.scrollTop = previousScrollTop;
+    });
+
+    return main;
   }
 
   if (panel) {
@@ -296,11 +311,109 @@
       if (nodeId && sourceMap[nodeId]) {
         node.style.cursor = 'pointer';
         node.addEventListener('click', function (e) {
+          e.preventDefault();
           e.stopPropagation();
           showSource(nodeId);
         });
       }
     });
+  }
+
+  function attachMermaidZoomControls() {
+    var diagrams = document.querySelectorAll('.mermaid');
+    diagrams.forEach(function (diagram, index) {
+      if (diagram.dataset.otZoomReady === 'true') return;
+
+      var svg = diagram.querySelector('svg');
+      if (!svg) return;
+
+      diagram.dataset.otZoomReady = 'true';
+
+      var shell = document.createElement('div');
+      shell.className = 'ot-mermaid-shell';
+      diagram.parentNode.insertBefore(shell, diagram);
+      shell.appendChild(diagram);
+
+      var toolbar = document.createElement('div');
+      toolbar.className = 'ot-mermaid-toolbar';
+      toolbar.setAttribute('aria-label', 'Mermaid zoom controls');
+
+      var zoomOut = createZoomButton('-', 'Zoom out');
+      var zoomLabel = document.createElement('span');
+      zoomLabel.className = 'ot-mermaid-zoom-label';
+      zoomLabel.textContent = '100%';
+      var zoomIn = createZoomButton('+', 'Zoom in');
+      var reset = createZoomButton('100%', 'Reset zoom');
+
+      toolbar.appendChild(zoomOut);
+      toolbar.appendChild(zoomLabel);
+      toolbar.appendChild(zoomIn);
+      toolbar.appendChild(reset);
+      shell.insertBefore(toolbar, diagram);
+
+      var state = {
+        scale: 1,
+        min: 0.5,
+        max: 2.5,
+        step: 0.1,
+        baseWidth: 0,
+        baseHeight: 0
+      };
+
+      measureSvg(svg, state);
+      applyMermaidZoom(svg, zoomLabel, state);
+
+      zoomOut.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        state.scale = Math.max(state.min, roundScale(state.scale - state.step));
+        applyMermaidZoom(svg, zoomLabel, state);
+      });
+
+      zoomIn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        state.scale = Math.min(state.max, roundScale(state.scale + state.step));
+        applyMermaidZoom(svg, zoomLabel, state);
+      });
+
+      reset.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        state.scale = 1;
+        applyMermaidZoom(svg, zoomLabel, state);
+      });
+
+      shell.dataset.otMermaidIndex = String(index + 1);
+    });
+  }
+
+  function createZoomButton(text, title) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ot-mermaid-zoom-button';
+    button.textContent = text;
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    return button;
+  }
+
+  function measureSvg(svg, state) {
+    var rect = svg.getBoundingClientRect();
+    var viewBox = svg.viewBox && svg.viewBox.baseVal;
+    state.baseWidth = rect.width || (viewBox && viewBox.width) || 800;
+    state.baseHeight = rect.height || (viewBox && viewBox.height) || 500;
+  }
+
+  function applyMermaidZoom(svg, label, state) {
+    svg.style.width = Math.round(state.baseWidth * state.scale) + 'px';
+    svg.style.height = Math.round(state.baseHeight * state.scale) + 'px';
+    svg.style.maxWidth = 'none';
+    label.textContent = Math.round(state.scale * 100) + '%';
+  }
+
+  function roundScale(value) {
+    return Math.round(value * 10) / 10;
   }
 
   // -- Bootstrap --
