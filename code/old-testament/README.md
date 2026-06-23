@@ -27,3 +27,5 @@ npx skills add sien75/Genesis-AuthorinG
 > 注意：分析项目会消耗比较多的 token。
 
 分析完成后 Agent 会提示你打开 url，打开后需关联到本地项目目录，关联完成后就可以对应代码阅读文档了。
+
+> **浏览器支持**：关联本地项目目录需要 [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API)，目前仅 **Chrome**（以及基于 Chromium 的 Edge 等浏览器）支持。Safari 和 Firefox 暂不支持此功能。
